@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   ExternalLink,
@@ -85,7 +85,7 @@ const initialPrerequisites: Prerequisite[] = [
     name: 'kubeflex',
     displayName: 'KubeFlex',
     category: PrereqCategory.Core,
-    description: 'KubeFlex CLI tool (required version ≥ 0.8.0)',
+    description: 'installationPage.prerequisites.kubeflexDescription',
     minVersion: '0.8.0',
     installCommand:
       'bash <(curl -s https://raw.githubusercontent.com/kubestellar/kubeflex/main/scripts/install-kubeflex.sh) --ensure-folder /usr/local/bin --strip-bin',
@@ -97,12 +97,12 @@ const initialPrerequisites: Prerequisite[] = [
     name: 'clusteradm',
     displayName: 'OCM CLI',
     category: PrereqCategory.Core,
-    description: 'Open Cluster Management CLI (required version between 0.7 and 0.11)',
+    description: 'installationPage.prerequisites.ocmDescription',
     minVersion: '0.7.0',
     maxVersion: '0.11.0',
     installCommand:
       'bash <(curl -L https://raw.githubusercontent.com/open-cluster-management-io/clusteradm/main/install.sh) 0.10.1',
-    installUrl: 'https://docs.kubestellar.io/release-0.27.2/direct/pre-reqs/',
+    installUrl: 'https://docs.kubestellar.io/latest/direct/pre-reqs/',
     versionCommand: 'clusteradm version',
     status: PrereqStatus.Checking,
     aliasNames: ['ocm cli', 'ocmcli'],
@@ -111,7 +111,7 @@ const initialPrerequisites: Prerequisite[] = [
     name: 'helm',
     displayName: 'Helm',
     category: PrereqCategory.Core,
-    description: 'Kubernetes package manager (required version ≥ 3.0.0)',
+    description: 'installationPage.prerequisites.helmDescription',
     minVersion: '3.0.0',
     installCommand:
       'curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash',
@@ -123,7 +123,7 @@ const initialPrerequisites: Prerequisite[] = [
     name: 'kubectl',
     displayName: 'kubectl',
     category: PrereqCategory.Core,
-    description: 'Kubernetes command-line tool (required version ≥ 1.27.0)',
+    description: 'installationPage.prerequisites.kubectlDescription',
     minVersion: '1.27.0',
     installCommand:
       'curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && chmod +x kubectl && sudo mv kubectl /usr/local/bin/',
@@ -135,7 +135,7 @@ const initialPrerequisites: Prerequisite[] = [
     name: 'kind',
     displayName: 'kind',
     category: PrereqCategory.Setup,
-    description: 'Tool for running local Kubernetes clusters (required version ≥ 0.20.0)',
+    description: 'installationPage.prerequisites.kindDescription',
     minVersion: '0.20.0',
     installCommand:
       'curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64 && chmod +x ./kind && sudo mv ./kind /usr/local/bin/kind',
@@ -147,7 +147,7 @@ const initialPrerequisites: Prerequisite[] = [
     name: 'docker',
     displayName: 'Docker',
     category: PrereqCategory.Setup,
-    description: 'Container runtime (required version ≥ 20.0.0)',
+    description: 'installationPage.prerequisites.dockerDescription',
     minVersion: '20.0.0',
     installCommand: 'curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh',
     installUrl: 'https://docs.docker.com/engine/install/',
@@ -436,7 +436,7 @@ const PrerequisiteCard = ({
               <StatusBadge status={prerequisite.status} isDark={isDark} />
             </div>
             <p className={`mt-0.5 text-sm ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>
-              {prerequisite.description}
+              {t(prerequisite.description)}
             </p>
           </div>
         </div>
@@ -498,7 +498,7 @@ const PrerequisiteCard = ({
 
           {prerequisite.status === PrereqStatus.Success && (
             <div
-              className={`flex items-start rounded-md border p-3 ${
+              className={`mt-4 flex items-start rounded-md border p-3 ${
                 isDark
                   ? 'border-emerald-800/30 bg-emerald-950/20'
                   : 'border-emerald-200 bg-emerald-50'
@@ -706,6 +706,129 @@ const InstallationPage = () => {
   );
 
   const navigate = useNavigate();
+  const { i18n } = useTranslation();
+  const lastToastLangRef = useRef<string | null>(null);
+  const toastIdRef = useRef<string | null>(null);
+
+  const refreshPrerequisites = async () => {
+    // Reset all prerequisites to checking status
+    setPrerequisites(prev =>
+      prev.map(prereq => ({
+        ...prereq,
+        status: PrereqStatus.Checking,
+        version: undefined,
+        details: undefined,
+      }))
+    );
+
+    // Show loading toast
+    const loadingToast = toast.loading(t('installationPage.toasts.recheckingPrerequisites'));
+
+    try {
+      const { data } = await api.get('/api/prerequisites');
+
+      // Update prerequisites with real data (same logic as in useEffect)
+      const updatedPrereqs = prerequisites.map(prereq => {
+        // Try to find the tool by name or alias
+        let tool = data.prerequisites?.find(
+          (t: PrereqToolData) => t.name.toLowerCase() === prereq.name.toLowerCase()
+        );
+
+        // If not found and aliases exist, try to find by alias
+        if (!tool && prereq.aliasNames) {
+          for (const alias of prereq.aliasNames) {
+            tool = data.prerequisites?.find(
+              (t: PrereqToolData) => t.name.toLowerCase() === alias.toLowerCase()
+            );
+            if (tool) break;
+          }
+        }
+
+        // Special case for OCM CLI (clusteradm)
+        if (prereq.name === 'clusteradm' && !tool) {
+          // Try alternative name formats
+          tool = data.prerequisites?.find(
+            (t: PrereqToolData) =>
+              t.name.toLowerCase().includes('ocm') ||
+              t.name.toLowerCase().includes('cluster') ||
+              t.name.toLowerCase() === 'open cluster management'
+          );
+        }
+
+        if (!tool) {
+          return {
+            ...prereq,
+            status: PrereqStatus.Error,
+            details: 'Tool not found',
+          };
+        }
+
+        // Set version if available
+        if (tool.version) {
+          prereq.version = tool.version;
+        }
+
+        // Check version requirements
+        if (!tool.installed) {
+          return {
+            ...prereq,
+            status: PrereqStatus.Error,
+            details: 'Not installed',
+          };
+        } else if (prereq.minVersion && tool.version) {
+          const versionMet = compareVersions(tool.version, prereq.minVersion) >= 0;
+          const maxVersionMet = prereq.maxVersion
+            ? compareVersions(tool.version, prereq.maxVersion) <= 0
+            : true;
+
+          if (!versionMet) {
+            return {
+              ...prereq,
+              status: PrereqStatus.Warning,
+              details: `Version too old. Required: ${prereq.minVersion} or higher.`,
+            };
+          } else if (!maxVersionMet) {
+            return {
+              ...prereq,
+              status: PrereqStatus.Warning,
+              details: `Version too new. Required: up to ${prereq.maxVersion}.`,
+            };
+          } else {
+            return {
+              ...prereq,
+              status: PrereqStatus.Success,
+            };
+          }
+        } else {
+          return {
+            ...prereq,
+            status: PrereqStatus.Success,
+          };
+        }
+      });
+
+      setPrerequisites(updatedPrereqs);
+
+      // Dismiss loading toast and show success
+      toast.dismiss(loadingToast);
+      toast.success(t('installationPage.toasts.prerequisitesRechecked'));
+    } catch (error) {
+      console.error('Error rechecking prerequisites:', error);
+
+      // Set all prerequisites to unknown on error
+      setPrerequisites(prev =>
+        prev.map(prereq => ({
+          ...prereq,
+          status: PrereqStatus.Unknown,
+          details: 'Failed to check',
+        }))
+      );
+
+      // Dismiss loading toast and show error
+      toast.dismiss(loadingToast);
+      toast.error(t('installationPage.toasts.recheckFailed'));
+    }
+  };
 
   // Initial status check
   useEffect(() => {
@@ -753,117 +876,104 @@ const InstallationPage = () => {
   // Check prerequisites
   useEffect(() => {
     if (isChecking || checkError || skipPrerequisitesCheck) return;
+    let mounted = true;
 
     const checkPrerequisites = async () => {
       try {
         const { data } = await api.get('/api/prerequisites');
 
-        // Update prerequisites with real data
-        const updatedPrereqs = prerequisites.map(prereq => {
-          // Try to find the tool by name or alias
-          let tool = data.prerequisites?.find(
-            (t: PrereqToolData) => t.name.toLowerCase() === prereq.name.toLowerCase()
-          );
-
-          // If not found and aliases exist, try to find by alias
-          if (!tool && prereq.aliasNames) {
-            for (const alias of prereq.aliasNames) {
-              tool = data.prerequisites?.find(
-                (t: PrereqToolData) => t.name.toLowerCase() === alias.toLowerCase()
-              );
-              if (tool) break;
-            }
-          }
-
-          // Special case for OCM CLI (clusteradm)
-          if (prereq.name === 'clusteradm' && !tool) {
-            // Try alternative name formats
-            tool = data.prerequisites?.find(
-              (t: PrereqToolData) =>
-                t.name.toLowerCase().includes('ocm') ||
-                t.name.toLowerCase().includes('cluster') ||
-                t.name.toLowerCase() === 'open cluster management'
+        // Use functional setState to avoid using `prerequisites` from closure
+        setPrerequisites(prev => {
+          const updated = prev.map(prereq => {
+            // do NOT mutate `prereq` — always return new object
+            let tool = data.prerequisites?.find(
+              (t: PrereqToolData) => t.name.toLowerCase() === prereq.name.toLowerCase()
             );
-          }
+            if (!tool && prereq.aliasNames) {
+              for (const alias of prereq.aliasNames) {
+                tool = data.prerequisites?.find(
+                  (t: PrereqToolData) => t.name.toLowerCase() === alias.toLowerCase()
+                );
+                if (tool) break;
+              }
+            }
+            if (prereq.name === 'clusteradm' && !tool) {
+              tool = data.prerequisites?.find(
+                (t: PrereqToolData) =>
+                  t.name.toLowerCase().includes('ocm') ||
+                  t.name.toLowerCase().includes('cluster') ||
+                  t.name.toLowerCase() === 'open cluster management'
+              );
+            }
 
-          if (!tool) {
-            return {
-              ...prereq,
-              status: PrereqStatus.Error,
-              details: 'Tool not found',
-            };
-          }
-
-          // Set version if available
-          if (tool.version) {
-            prereq.version = tool.version;
-          }
-
-          // Check version requirements
-          if (!tool.installed) {
-            return {
-              ...prereq,
-              status: PrereqStatus.Error,
-              details: 'Not installed',
-            };
-          } else if (prereq.minVersion && tool.version) {
-            const versionMet = compareVersions(tool.version, prereq.minVersion) >= 0;
-            const maxVersionMet = prereq.maxVersion
-              ? compareVersions(tool.version, prereq.maxVersion) <= 0
-              : true;
-
-            if (!versionMet) {
+            if (!tool) {
               return {
                 ...prereq,
-                status: PrereqStatus.Warning,
-                details: `Version too old. Required: ${prereq.minVersion} or higher.`,
-              };
-            } else if (!maxVersionMet) {
-              return {
-                ...prereq,
-                status: PrereqStatus.Warning,
-                details: `Version too new. Required: up to ${prereq.maxVersion}.`,
-              };
-            } else {
-              return {
-                ...prereq,
-                status: PrereqStatus.Success,
+                status: PrereqStatus.Error,
+                details: 'Tool not found',
+                version: undefined,
               };
             }
-          } else {
-            return {
-              ...prereq,
-              status: PrereqStatus.Success,
-            };
+
+            const version = tool.version;
+            if (!tool.installed) {
+              return { ...prereq, status: PrereqStatus.Error, details: 'Not installed', version };
+            }
+
+            if (prereq.minVersion && version) {
+              const versionMet = compareVersions(version, prereq.minVersion) >= 0;
+              const maxVersionMet = prereq.maxVersion
+                ? compareVersions(version, prereq.maxVersion) <= 0
+                : true;
+              if (!versionMet) {
+                return {
+                  ...prereq,
+                  status: PrereqStatus.Warning,
+                  details: `Version too old. Required: ${prereq.minVersion} or higher.`,
+                  version,
+                };
+              } else if (!maxVersionMet) {
+                return {
+                  ...prereq,
+                  status: PrereqStatus.Warning,
+                  details: `Version too new. Required: up to ${prereq.maxVersion}.`,
+                  version,
+                };
+              } else {
+                return { ...prereq, status: PrereqStatus.Success, version };
+              }
+            }
+
+            return { ...prereq, status: PrereqStatus.Success, version };
+          });
+
+          // If component unmounted, don't update UI states
+          if (!mounted) return prev;
+
+          // If any problems, set step to install
+          const firstProblem = updated.find(
+            p => p.status === PrereqStatus.Error || p.status === PrereqStatus.Warning
+          );
+          if (firstProblem) {
+            setCurrentStep('install');
           }
+
+          return updated;
         });
-
-        setPrerequisites(updatedPrereqs);
-
-        // Expand first error or warning automatically
-        const firstProblem = updatedPrereqs.find(
-          p => p.status === PrereqStatus.Error || p.status === PrereqStatus.Warning
-        );
-
-        if (firstProblem) {
-          setCurrentStep('install');
-        }
-      } catch (error) {
-        console.error('Error checking prerequisites:', error);
-
-        // Set all prerequisites to unknown
-        setPrerequisites(
-          prerequisites.map(prereq => ({
-            ...prereq,
-            status: PrereqStatus.Unknown,
-            details: 'Failed to check',
-          }))
+      } catch (err) {
+        console.error('Error checking prerequisites:', err);
+        setPrerequisites(prev =>
+          prev.map(pr => ({ ...pr, status: PrereqStatus.Unknown, details: 'Failed to check' }))
         );
       }
     };
 
     checkPrerequisites();
-  }, [isChecking, checkError, prerequisites, skipPrerequisitesCheck]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [isChecking, checkError, skipPrerequisitesCheck]);
 
   // Periodically check if KubeStellar is now installed
   useEffect(() => {
@@ -898,11 +1008,19 @@ const InstallationPage = () => {
 
     // Only start the interval if we're not already checking
     if (!isChecking && !checkError) {
-      // Only show the message once when starting the interval
-      toast(t('installationPage.toasts.notInstalled'), {
-        icon: 'ℹ️',
-        duration: 5000,
-      });
+      // Only show the toast if the language has changed
+      if (lastToastLangRef.current !== i18n.language) {
+        // Dismiss previous toast if any
+        if (toastIdRef.current) {
+          toast.dismiss(toastIdRef.current);
+        }
+        // Show the toast in the current language
+        toastIdRef.current = toast(t('installationPage.toasts.notInstalled'), {
+          icon: 'ℹ️',
+          duration: 5000,
+        });
+        lastToastLangRef.current = i18n.language;
+      }
 
       // Start the interval
       intervalId = window.setInterval(checkStatus, 30000); // Check every 30 seconds
@@ -912,7 +1030,7 @@ const InstallationPage = () => {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [navigate, isChecking, checkError, t]);
+  }, [navigate, isChecking, checkError, t, i18n.language]);
 
   // Retry status check
   const retryStatusCheck = async () => {
@@ -1054,7 +1172,7 @@ const InstallationPage = () => {
           isDark ? 'border-slate-800/50 bg-slate-900/90' : 'border-gray-200/50 bg-white/90'
         }`}
       >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center">
               <div className="flex items-center transition-opacity hover:opacity-90">
@@ -1080,7 +1198,7 @@ const InstallationPage = () => {
                 {t('installationPage.footer.github')}
               </a>
               <a
-                href="https://docs.kubestellar.io/release-0.27.2/direct/get-started/"
+                href="https://docs.kubestellar.io/latest/direct/get-started/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`group flex items-center text-sm font-medium transition-colors ${
@@ -1130,7 +1248,7 @@ const InstallationPage = () => {
                 href="https://kubestellar.io"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex transform items-center rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-lg transition-all hover:scale-105 hover:from-blue-500 hover:to-indigo-500 hover:shadow-indigo-500/25"
+                className="flex transform items-center rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-lg transition-all hover:scale-105 hover:from-blue-500 hover:to-indigo-500 hover:text-white hover:shadow-indigo-500/25"
               >
                 <Globe size={16} className="mr-1.5" />
                 {t('common.help')}
@@ -1354,7 +1472,7 @@ const InstallationPage = () => {
                   className={`mt-6 border-t pt-6 ${isDark ? 'border-slate-800' : 'border-gray-200'}`}
                 >
                   <a
-                    href="https://docs.kubestellar.io/release-0.27.2/direct/pre-reqs/"
+                    href="https://docs.kubestellar.io/latest/direct/pre-reqs/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className={`group flex items-center transition-colors ${
@@ -1416,7 +1534,6 @@ const InstallationPage = () => {
                       description={t('installationPage.prerequisites.description')}
                       isDark={isDark}
                     />
-
                     {/* Status summary */}
                     <div className="mb-6 flex flex-wrap gap-4">
                       <div
@@ -1537,15 +1654,25 @@ const InstallationPage = () => {
                     {/* Navigation buttons */}
                     <div className="mt-8 flex justify-between">
                       <button
-                        onClick={() => window.location.reload()}
+                        onClick={refreshPrerequisites}
+                        disabled={getPrereqStatusCounts().checking > 0}
                         className={`flex items-center rounded-lg px-4 py-2 transition-colors ${
-                          isDark
-                            ? 'bg-slate-800 text-white hover:bg-slate-700'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          getPrereqStatusCounts().checking > 0
+                            ? isDark
+                              ? 'cursor-not-allowed bg-slate-800/50 text-slate-500'
+                              : 'cursor-not-allowed bg-gray-300/50 text-gray-400'
+                            : isDark
+                              ? 'bg-slate-800 text-white hover:bg-slate-700'
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                         }`}
                       >
-                        <RefreshCw size={16} className="mr-2" />
-                        {t('installationPage.prerequisites.buttons.refresh')}
+                        <RefreshCw
+                          size={16}
+                          className={`mr-2 ${getPrereqStatusCounts().checking > 0 ? 'animate-spin' : ''}`}
+                        />
+                        {getPrereqStatusCounts().checking > 0
+                          ? t('installationPage.prerequisites.buttons.checking')
+                          : t('installationPage.prerequisites.buttons.refresh')}
                       </button>
 
                       <button
@@ -1602,10 +1729,10 @@ const InstallationPage = () => {
                             )}
                           </p>
                           <a
-                            href="https://docs.kubestellar.io/release-0.27.2/direct/pre-reqs/"
+                            href="https://docs.kubestellar.io/latest/direct/pre-reqs/"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-500"
+                            className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-500 hover:text-white"
                           >
                             <Book size={16} className="mr-2" />
                             {t('installationPage.installation.installPrerequisitesFirst.button')}

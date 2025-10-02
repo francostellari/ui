@@ -11,6 +11,7 @@ import { api } from '../../../lib/api';
 import WorkloadLabelInput from '../WorkloadLabelInput';
 import CancelButton from '../../common/CancelButton';
 import { useTranslation } from 'react-i18next';
+import ButtonTooltip from '../../common/ButtonTooltip';
 
 export interface HelmFormData {
   repoName: string;
@@ -114,11 +115,15 @@ export const HelmTab = ({
     setPopularLoading(true);
 
     try {
+      // Generate unique release name with timestamp to avoid conflicts
+      const timestamp = Date.now();
+      const uniqueReleaseName = `${selectedChart}-${timestamp}`;
+
       const requestBody = {
         repoName: 'bitnami',
         repoURL: 'https://charts.bitnami.com/bitnami',
         chartName: selectedChart,
-        releaseName: selectedChart,
+        releaseName: uniqueReleaseName, // Use unique release name to prevent conflicts
         namespace: selectedChart,
         workloadLabel: formData.workload_label,
       };
@@ -128,7 +133,8 @@ export const HelmTab = ({
       if (response.status === 200 || response.status === 201) {
         toast.success(t('workloads.helm.messages.deploySuccess', { chartName: selectedChart }));
         setSelectedChart(null);
-        setTimeout(() => window.location.reload(), 4000);
+        // Reduce reload delay to minimize confusion
+        setTimeout(() => window.location.reload(), 2000);
       } else {
         throw new Error('Unexpected response status: ' + response.status);
       }
@@ -138,7 +144,13 @@ export const HelmTab = ({
 
       if (err.response) {
         if (err.response.status === 500) {
-          toast.error(t('workloads.helm.messages.deployFailureReuse'));
+          const errorMessage = (err.response.data as { error?: string })?.error || 'Unknown error';
+          // More specific error handling for release name conflicts
+          if (errorMessage.includes('cannot re-use a name')) {
+            toast.error('Release name already exists. Please try again with a different name.');
+          } else {
+            toast.error(t('workloads.helm.messages.deployFailureReuse'));
+          }
         } else if (err.response.status === 400) {
           toast.error(t('workloads.helm.messages.deployFailure'));
         }
@@ -249,42 +261,52 @@ export const HelmTab = ({
           >
             {t('workloads.helm.buttons.cancel')}
           </CancelButton>
-          <Button
-            variant="contained"
-            onClick={() => {
-              if (selectedOption === 'createOwn') {
-                if (validateForm()) handleDeploy();
-              } else {
-                handlePopularHelmDeploy();
-              }
-            }}
+          <ButtonTooltip
+            tooltip={t('validation.missingRequiredFields')}
             disabled={
               (selectedOption === 'createOwn' && (!hasChanges || loading)) ||
               (selectedOption === 'popularCharts' && (!selectedChart || popularLoading)) ||
               (selectedOption === 'userCharts' && (!selectedChart || userLoading))
             }
-            sx={{
-              textTransform: 'none',
-              fontWeight: '600',
-              backgroundColor: '#1976d2',
-              color: '#fff',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              '&:hover': {
-                backgroundColor: '#1565c0',
-              },
-              '&:disabled': {
-                backgroundColor: '#b0bec5',
-                color: '#fff',
-              },
-            }}
+            placement="top"
           >
-            {(selectedOption === 'createOwn' && loading) ||
-            (selectedOption === 'popularCharts' && popularLoading) ||
-            (selectedOption === 'userCharts' && userLoading)
-              ? t('workloads.helm.buttons.deploying')
-              : t('workloads.helm.buttons.apply')}
-          </Button>
+            <Button
+              variant="contained"
+              onClick={() => {
+                if (selectedOption === 'createOwn') {
+                  if (validateForm()) handleDeploy();
+                } else {
+                  handlePopularHelmDeploy();
+                }
+              }}
+              disabled={
+                (selectedOption === 'createOwn' && (!hasChanges || loading)) ||
+                (selectedOption === 'popularCharts' && (!selectedChart || popularLoading)) ||
+                (selectedOption === 'userCharts' && (!selectedChart || userLoading))
+              }
+              sx={{
+                textTransform: 'none',
+                fontWeight: '600',
+                backgroundColor: '#1976d2',
+                color: '#fff',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                '&:hover': {
+                  backgroundColor: '#1565c0',
+                },
+                '&:disabled': {
+                  backgroundColor: '#b0bec5',
+                  color: '#fff',
+                },
+              }}
+            >
+              {(selectedOption === 'createOwn' && loading) ||
+              (selectedOption === 'popularCharts' && popularLoading) ||
+              (selectedOption === 'userCharts' && userLoading)
+                ? t('workloads.helm.buttons.deploying')
+                : t('workloads.helm.buttons.apply')}
+            </Button>
+          </ButtonTooltip>
         </Box>
       </Box>
     </StyledContainer>

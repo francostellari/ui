@@ -47,9 +47,9 @@
         "title": "插件管理器",
         "description": "管理和监控 KubeStellar 插件"
       },
-      "clusters": {
-        "title": "远程集群",
-        "description": "管理 Kubernetes 集群"
+      "managedClusters": {
+        "title": "管理集群",
+        "description": "管理Kubernetes集群"
       },
       "workloads": {
         "title": "工作负载",
@@ -79,6 +79,10 @@
         "title": "退出登录",
         "description": "退出您的账户",
         "infoMessage": "您已成功退出登录。"
+      },
+      "galaxyMarketplace": {
+        "title": "银河市场",
+        "description": "在银河市场中发现并安装插件"
       }
     }
   },
@@ -145,7 +149,8 @@
         "passwordMismatch": "密码不匹配",
         "addFailed": "添加用户失败",
         "updateFailed": "更新用户失败",
-        "deleteFailed": "删除用户失败"
+        "deleteFailed": "删除用户失败",
+        "invalidUsername": "用户名只能包含字母、数字、下划线和连字符"
       },
       "success": {
         "userAdded": "用户添加成功",
@@ -163,12 +168,14 @@
     },
     "items": {
       "home": "首页",
-      "remoteClusters": "远程集群",
+      "managedClusters": "管理集群",
+      "grafana": "监控面板",
       "stagedWorkloads": "已暂存工作负载",
       "bindingPolicies": "绑定策略",
       "deployedWorkloads": "已部署工作负载",
       "pluginManager": "插件管理器",
-      "userManagement": "用户管理"
+      "userManagement": "用户管理",
+      "galaxyMarketplace": "银河市场"
     }
   },
   "common": {
@@ -1473,8 +1480,8 @@
         "packageIdPlaceholder": "helm/bitnami/nginx",
         "packageIdTip": "指定 Helm chart 包 ID（例如：helm/bitnami/nginx）",
         "version": "版本（默认：latest）",
-        "versionTooltip": "要部署的 chart 版本（例如：13.2.10）。如果未指定，将使用最新版本。",
-        "versionPlaceholder": "13.2.10（留空表示使用最新版本）",
+        "versionTooltip": "要部署的 chart 版本（例如：13.2.12）。如果未指定，将使用最新版本。",
+        "versionPlaceholder": "13.2.12（留空表示使用最新版本）",
         "versionTip": "指定要部署的版本（留空表示使用最新版本）",
         "releaseName": "发布名称 *",
         "releaseNameTooltip": "用于标识您的 Helm 发布的名称",
@@ -2050,5 +2057,12 @@
     "tokenLabel": "个人访问令牌 (PAT) *",
     "tokenPlaceholder": "例如：ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
     "tokenTip": "输入您的 GitHub 个人访问令牌"
+  },
+  "marketplace": {
+    "title": "KubeStellar Galaxy 市场",
+    "description": "发现并安装插件以增强您的 KubeStellar 体验"
+  },
+  "validation": {
+    "missingRequiredFields": "缺少必填字段"
   }
 }

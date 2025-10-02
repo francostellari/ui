@@ -516,6 +516,7 @@
       "notAvailable": "N/D",
       "invalidDate": "Fecha no válida",
       "managedClusters": "Clústeres Gestionados",
+      "grafana": "Grafana",
       "total": "total",
       "viewAll": "Ver todos",
       "cpuCapacity": "Capacidad de CPU",
@@ -1321,8 +1322,8 @@
         "packageIdPlaceholder": "helm/bitnami/nginx",
         "packageIdTip": "Especifica el ID del paquete de Helm (p. ej., helm/bitnami/nginx)",
         "version": "Versión (por defecto: última)",
-        "versionTooltip": "Versión del chart a desplegar (p. ej., 13.2.10). Si no se especifica, se usará la última.",
-        "versionPlaceholder": "13.2.10 (dejar vacío para la última)",
+        "versionTooltip": "Versión del chart a desplegar (p. ej., 13.2.12). Si no se especifica, se usará la última.",
+        "versionPlaceholder": "13.2.12 (dejar vacío para la última)",
         "versionTip": "Especifica la versión a desplegar (dejar vacío para la última)",
         "releaseName": "Nombre del Despliegue *",
         "releaseNameTooltip": "Nombre para identificar tu despliegue de Helm",
@@ -1954,12 +1955,16 @@
         "description": "Gestionar y supervisar los plugins de KubeStellar"
       },
       "clusters": {
-        "title": "Clusters Remotos",
-        "description": "Administrar clusters de Kubernetes"
+        "title": "Clústeres Administrados",
+        "description": "Administrar clústeres de Kubernetes"
       },
       "workloads": {
         "title": "Cargas de trabajo",
-        "description": "Gestionar cargas de trabajo entre clusters"
+        "description": "Gestionar cargas de trabajo en clusters"
+      },
+      "resourceExplorer": {
+        "title": "Explorador de Objetos",
+        "description": "Buscar y filtrar objetos de Kubernetes"
       },
       "bindingPolicies": {
         "title": "Políticas de vinculación",
@@ -1985,6 +1990,10 @@
         "title": "Cerrar sesión",
         "description": "Salir de tu cuenta",
         "infoMessage": "Has cerrado sesión exitosamente."
+      },
+      "galaxyMarketplace": {
+        "title": "Mercado Galaxy",
+        "description": "Descubre e instala complementos desde el Mercado Galaxy"
       }
     }
   },
@@ -1997,12 +2006,14 @@
     },
     "items": {
       "home": "Inicio",
-      "remoteClusters": "Clústeres Remotos",
+      "managedClusters": "Clústeres Administrados",
+      "grafana": "Grafana",
       "stagedWorkloads": "Cargas de Trabajo Preparadas",
       "bindingPolicies": "Políticas de Vinculación",
       "deployedWorkloads": "Cargas de Trabajo Desplegadas",
       "pluginManager": "Gestor de Plugins",
-      "userManagement": "Gestión de Usuarios"
+      "userManagement": "Gestión de Usuarios",
+      "galaxyMarketplace": "Mercado Galaxy"
     }
   },
   "plugins": {
@@ -2089,7 +2100,8 @@
       }
     },
     "marketplace": {
-      "title": "Mercado de Plugins",
+      "title": "Mercado Galaxy de KubeStellar",
+      "description": "Descubre e instala plugins para mejorar tu experiencia con KubeStellar",
       "browse": "Explorar Plugins Disponibles",
       "featured": "Plugins Destacados",
       "categories": "Categorías",
@@ -2201,7 +2213,8 @@
         "passwordMismatch": "Las contraseñas no coinciden",
         "addFailed": "Error al añadir usuario",
         "updateFailed": "Error al actualizar usuario",
-        "deleteFailed": "Error al eliminar usuario"
+        "deleteFailed": "Error al eliminar usuario",
+        "invalidUsername": "El nombre de usuario solo puede contener letras, números, guiones bajos y guiones."
       },
       "success": {
         "userAdded": "Usuario añadido exitosamente",
@@ -2209,5 +2222,37 @@
         "userDeleted": "Usuario eliminado exitosamente"
       }
     }
+  },
+  "notFoundPage": {
+    "logoAlt": "Logo de KubeStellar",
+    "mainTitle": "404 - Página no encontrada",
+    "description": "La página que busca puede haber sido eliminada, su nombre ha cambiado o no está disponible temporalmente.",
+    "returnHomeButton": "Volver al inicio",
+    "tryAgainButton": "Intentar de nuevo",
+    "quotes": [
+      {
+        "text": "En el vasto universo del código, a veces nos perdemos entre las estrellas.",
+        "author": "Desarrollador Anónimo"
+      },
+      {
+        "text": "El camino menos transitado a menudo no se encuentra por una razón.",
+        "author": "Explorador Web"
+      },
+      {
+        "text": "No todos los que deambulan están perdidos, pero esta página definitivamente lo está.",
+        "author": "J.R.R. Token"
+      },
+      {
+        "text": "El éxito no es definitivo, el 404 no es fatal: lo que cuenta es el valor para navegar.",
+        "author": "Winston Codehill"
+      },
+      {
+        "text": "La mejor manera de predecir el futuro es implementar un enrutamiento adecuado.",
+        "author": "Alan Turning"
+      }
+    ]
+  },
+  "validation": {
+    "missingRequiredFields": "Faltan campos obligatorios"
   }
 }

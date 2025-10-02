@@ -19,7 +19,7 @@ Welcome to **KubestellarUI**! This guide will help you set up the KubestellarUI 
 1. **Frontend**: Built with React and TypeScript
 2. **Backend**: Built with Golang using the Gin framework.
 
-<a href="https://kubernetes.slack.com/archives/C058SUSL5AA"> 
+<a href="https://cloud-native.slack.com/archives/C097094RZ3M"> 
   <img alt="Join Slack" src="https://img.shields.io/badge/KubeStellar-Join%20Slack-blue?logo=slack">
 </a>
 <a href="https://deepwiki.com/kubestellar/ui">
@@ -62,7 +62,7 @@ Welcome to **KubestellarUI**! This guide will help you set up the KubestellarUI 
 
 - Ensure you have access to a Kubernetes clusters setup with Kubestellar Getting Started Guide & Kubestellar prerequisites installed
 
-- **Kubestellar guide**: [Guide](https://docs.kubestellar.io/release-0.25.1/direct/get-started/)
+- **Kubestellar guide**: [Guide](https://docs.kubestellar.io/release-0.28.0/direct/get-started/)
 
 > [!NOTE]
 > If you're running on macOS, you may need to manually add a host entry to resolve `its1.localtest.me` to `localhost` using:
@@ -75,18 +75,19 @@ Welcome to **KubestellarUI**! This guide will help you set up the KubestellarUI 
 
 - Make sure you have "make" installed to directly execute the backend script via makefile
 - Air helps in hot reloading of the backend
-- **Air guide**: [Guide](https://github.com/air-verse/air#installation)
+- **Air Installation Guide**: [Guide](https://github.com/air-verse/air#installation)
 
 ### 6. Golang Migrate
+
 - Make sure you have installed 'golang-migrate' cli tool which helps in database migration
-- **Installation Guide:** [Install](https://github.com/golang-migrate/migrate/tree/master/cmd/migrate)
+- **Golang-Migrate Installation Guide:** [Install](https://github.com/golang-migrate/migrate/tree/master/cmd/migrate)
 
 ## Installation Steps
 
 Clone the Repository
 
 ```bash
-git clone https://github.com/your-github-username/ui.git
+git clone https://github.com/kubestellar/ui.git
 
 cd ui
 ```
@@ -110,7 +111,8 @@ cp .env.example .env
 
 **Example `.env` file:**
 
-```
+```env
+VITE_PROMETHEUS_URL=http://localhost:9090
 VITE_BASE_URL=http://localhost:4000
 VITE_APP_VERSION=0.1.0
 VITE_GIT_COMMIT_HASH=$GIT_COMMIT_HASH
@@ -127,6 +129,7 @@ KubestellarUI uses environment variables to track the app version and the curren
 
 | Variable               | Purpose                                 | Example                 |
 | ---------------------- | --------------------------------------- | ----------------------- |
+| `VITE_PROMETHEUS_URL`  | Defines the Prometheus URL              | `http://localhost:9090` |
 | `VITE_BASE_URL`        | Defines the base URL for API calls      | `http://localhost:4000` |
 | `VITE_APP_VERSION`     | Defines the current application version | `0.1.0`                 |
 | `VITE_GIT_COMMIT_HASH` | Captures the current Git commit hash    | (Set during build)      |
@@ -169,7 +172,7 @@ cp .env.example .env
 
 **Example `.env` file:**
 
-```
+```env
 REDIS_HOST=localhost
 REDIS_PORT=6379
 CORS_ALLOWED_ORIGIN=http://localhost:5173
@@ -379,10 +382,33 @@ REDIS_IMAGE=redis:7-alpine docker compose up
 
 1. **Backend API**: [http://localhost:4000](http://localhost:4000) (or custom port if `BACKEND_PORT` is set)
 2. **Frontend UI**: [http://localhost:5173](http://localhost:5173) (or custom port if `FRONTEND_PORT` is set)
+3. **Grafana Dashboard**: [http://localhost:3000](http://localhost:3000) (when monitoring profile is enabled)
+
+#### Accessing Grafana Dashboard
+
+To access the Grafana monitoring dashboard:
+
+1. **Start services with monitoring profile**:
+   ```bash
+   docker compose --profile monitoring up
+   ```
+
+2. **Access Grafana**:
+   - URL: [http://localhost:3000](http://localhost:3000)
+   - Username: `admin`
+   - Password: `admin` (or custom password if `GRAFANA_PASSWORD` is set)
+
+3. **Available Dashboards**:
+   - System Overview Dashboard
+   - KubeStellar Working Dashboard
+   - Custom dashboards from `monitoring/grafana/dashboards/`
+
+> [!NOTE]
+> The monitoring stack includes Prometheus (metrics collection), Grafana (visualization), and various exporters for system, database, and Redis metrics. All services use host networking for optimal performance.
 
 ### Migration Commands
 
-```
+```bash
 cd backend
 make migrate-up #for keeping our database in sync with changes in sql code
 make migrate-down #rollback to previous 1 migration version(1 by default) and can specify if needed more than 1
@@ -401,14 +427,40 @@ make migrate-force # Force set migration version (use if out of sync)
 >
 > This resolves almost 80% of issues caused by overridden changes during installation on existing systems.
 
-<div>
-<h2><font size="6"><img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Red%20Heart.png" alt="Red Heart" width="40" height="40" /> Contributors </font></h2>
-</div>
-<br>
+## Getting in touch
 
-<center>
-<a href="https://github.com/kubestellar/ui/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=kubestellar/ui" />
-</a>
-</center>
-<br>
+There are several ways to communicate with us:
+
+- Instantly get access to our documents and meeting invites at our [Join Us Page.](http://kubestellar.io/joinus)
+
+- The [`#kubestellar-dev` channel](https://cloud-native.slack.com/archives/C097094RZ3M) in the [Cloud Native Slack Workspace](https://communityinviter.com/apps/cloud-native/cncf).
+
+- Our mailing lists:
+  - [kubestellar-dev](https://groups.google.com/g/kubestellar-dev) for development discussions.
+  - [kubestellar-users](https://groups.google.com/g/kubestellar-users) for discussions among users and potential users.
+
+- Subscribe to the [community meeting calendar](https://calendar.google.com/calendar/event?action=TEMPLATE&tmeid=MWM4a2loZDZrOWwzZWQzZ29xanZwa3NuMWdfMjAyMzA1MThUMTQwMDAwWiBiM2Q2NWM5MmJlZDdhOTg4NGVmN2ZlOWUzZjZjOGZlZDE2ZjZmYjJmODExZjU3NTBmNTQ3NTY3YTVkZDU4ZmVkQGc&tmsrc=b3d65c92bed7a9884ef7fe9e3f6c8fed16f6fb2f811f5750f547567a5dd58fed%40group.calendar.google.com&scp=ALL) for community meetings and events.
+  - The [kubestellar-dev](https://groups.google.com/g/kubestellar-dev) mailing list is subscribed to this calendar.
+
+- See recordings of past KubeStellar community meetings on [YouTube](https://www.youtube.com/@kubestellar)
+
+- See [upcoming](https://github.com/kubestellar/kubestellar/issues?q=is%3Aissue+is%3Aopen+label%3Acommunity-meeting) and [past](https://github.com/kubestellar/kubestellar/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity-meeting) community meeting agendas and notes.
+
+- Browse the [shared Google Drive](https://drive.google.com/drive/folders/1p68MwkX0sYdTvtup0DcnAEsnXElobFLS?usp=sharing) to share design docs, notes, etc.
+  - Members of the [kubestellar-dev](https://groups.google.com/g/kubestellar-dev) mailing list can view this drive.
+
+- Follow us on:
+  - LinkedIn - [#kubestellar](https://www.linkedin.com/feed/hashtag/?keywords=kubestellar)
+  - Medium - [kubestellar.medium.com](https://medium.com/@kubestellar/list/predefined:e785a0675051:READING_LIST)
+
+
+<h2 align="left">
+  <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Red%20Heart.png" alt="Red Heart" width="40" height="40" />
+  Contributors
+</h2>
+
+<p align="center">
+  <a href="https://github.com/kubestellar/ui/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=kubestellar/ui" alt="Contributors" />
+  </a>
+</p>

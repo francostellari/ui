@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { Outlet, ScrollRestoration, useLocation } from 'react-router-dom';
+import { Tooltip } from '@mui/material';
 import Header from './Header';
 import useTheme from '../stores/themeStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -124,7 +125,7 @@ export function Layout() {
         <div className="relative mb-auto flex w-full gap-0 pt-14 xl:pt-[76px] 2xl:pt-[88px]">
           {/* Sidebar/Menu - Desktop */}
           <motion.aside
-            className="sticky mt-1 hidden overflow-hidden px-3 py-3 transition-all duration-300 xl:block"
+            className="sticky mt-1 hidden overflow-visible px-3 py-3 xl:block"
             style={{
               height: 'calc(100vh - 76px)',
               top: '76px',
@@ -132,69 +133,79 @@ export function Layout() {
             }}
             animate={{
               width: isSidebarCollapsed ? '80px' : '280px',
-              transition: { duration: 0.25, ease: 'easeInOut' },
+              transition: {
+                duration: 0.4,
+                ease: [0.4, 0.0, 0.2, 1],
+                type: 'tween',
+              },
             }}
             initial={false}
           >
             <div className="mb-3 flex justify-end">
-              <motion.button
-                onClick={toggleSidebar}
-                className={`rounded-lg border-2 p-2 shadow-md transition-all duration-200 hover:shadow-lg active:scale-95 ${isSidebarCollapsed ? 'mr-2' : ''}`}
-                style={{
-                  background: isDark
-                    ? 'linear-gradient(to bottom right, #3b82f6, #2563eb)'
-                    : 'linear-gradient(to bottom right, #3b82f6, #1d4ed8)',
-                  borderColor: isDark ? '#60a5fa' : '#3b82f6',
-                  boxShadow: isDark
-                    ? '0 4px 10px rgba(37, 99, 235, 0.4)'
-                    : '0 4px 10px rgba(37, 99, 235, 0.2)',
-                  outline: 'none', // Remove default focus outline
-                  WebkitTapHighlightColor: 'transparent', // Remove mobile tap highlight
-                }}
-                whileHover={{
-                  scale: 1.05,
-                  boxShadow: isDark
-                    ? '0 6px 14px rgba(37, 99, 235, 0.5)'
-                    : '0 6px 14px rgba(37, 99, 235, 0.3)',
-                }}
-                aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                whileTap={{ scale: 0.9 }}
-                onFocus={e => {
-                  e.currentTarget.style.boxShadow = isDark
-                    ? '0 0 0 3px rgba(96, 165, 250, 0.3)'
-                    : '0 0 0 3px rgba(59, 130, 246, 0.3)';
-                }}
-                onBlur={e => {
-                  e.currentTarget.style.boxShadow = isDark
-                    ? '0 4px 10px rgba(37, 99, 235, 0.4)'
-                    : '0 4px 10px rgba(37, 99, 235, 0.2)';
-                }}
+              <Tooltip
+                title={isSidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
+                placement="right"
+                arrow
               >
-                <div
-                  className="flex h-5 w-5 items-center justify-center"
+                <motion.button
+                  onClick={toggleSidebar}
+                  className={`rounded-lg border-2 p-2 shadow-md transition-all duration-200 hover:shadow-lg active:scale-95 ${isSidebarCollapsed ? 'mr-2' : ''}`}
                   style={{
-                    color: '#ffffff',
+                    background: isDark
+                      ? 'linear-gradient(to bottom right, #3b82f6, #2563eb)'
+                      : 'linear-gradient(to bottom right, #3b82f6, #1d4ed8)',
+                    borderColor: isDark ? '#60a5fa' : '#3b82f6',
+                    boxShadow: isDark
+                      ? '0 4px 10px rgba(37, 99, 235, 0.4)'
+                      : '0 4px 10px rgba(37, 99, 235, 0.2)',
+                    outline: 'none', // Remove default focus outline
+                    WebkitTapHighlightColor: 'transparent', // Remove mobile tap highlight
+                  }}
+                  whileHover={{
+                    scale: 1.05,
+                    boxShadow: isDark
+                      ? '0 6px 14px rgba(37, 99, 235, 0.5)'
+                      : '0 6px 14px rgba(37, 99, 235, 0.3)',
+                  }}
+                  aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                  whileTap={{ scale: 0.9 }}
+                  onFocus={e => {
+                    e.currentTarget.style.boxShadow = isDark
+                      ? '0 0 0 3px rgba(96, 165, 250, 0.3)'
+                      : '0 0 0 3px rgba(59, 130, 246, 0.3)';
+                  }}
+                  onBlur={e => {
+                    e.currentTarget.style.boxShadow = isDark
+                      ? '0 4px 10px rgba(37, 99, 235, 0.4)'
+                      : '0 4px 10px rgba(37, 99, 235, 0.2)';
                   }}
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                  <div
+                    className="flex h-5 w-5 items-center justify-center"
                     style={{
-                      transform: isSidebarCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.3s ease',
+                      color: '#ffffff',
                     }}
                   >
-                    <path d="M15 18l-6-6 6-6" />
-                  </svg>
-                </div>
-              </motion.button>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        transform: isSidebarCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.3s ease',
+                      }}
+                    >
+                      <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                  </div>
+                </motion.button>
+              </Tooltip>
             </div>
             <motion.div key={isSidebarCollapsed ? 'collapsed' : 'expanded'}>
               <Suspense fallback={<LoadingPlaceholder />}>

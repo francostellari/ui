@@ -154,7 +154,8 @@
         "passwordMismatch": "パスワードが一致しません",
         "addFailed": "ユーザーの追加に失敗しました",
         "updateFailed": "ユーザーの更新に失敗しました",
-        "deleteFailed": "ユーザーの削除に失敗しました"
+        "deleteFailed": "ユーザーの削除に失敗しました",
+        "invalidUsername": "ユーザー名には英字、数字、アンダースコア、ハイフンのみ使用できます"
       },
       "success": {
         "userAdded": "ユーザーが正常に追加されました",
@@ -612,6 +613,7 @@
       "notAvailable": "該当なし",
       "invalidDate": "無効な日付",
       "managedClusters": "管理中のクラスター",
+      "grafana": "グラファナ",
       "total": "合計",
       "viewAll": "すべて表示",
       "cpuCapacity": "CPUキャパシティ",
@@ -1417,8 +1419,8 @@
         "packageIdPlaceholder": "helm/bitnami/nginx",
         "packageIdTip": "Helm チャートのパッケージ ID を指定（例: helm/bitnami/nginx）",
         "version": "バージョン（デフォルト: 最新）",
-        "versionTooltip": "デプロイするチャートのバージョン（例: 13.2.10）。未指定の場合は最新が使用されます。",
-        "versionPlaceholder": "13.2.10（空欄で最新）",
+        "versionTooltip": "デプロイするチャートのバージョン（例: 13.2.12）。未指定の場合は最新が使用されます。",
+        "versionPlaceholder": "13.2.12（空欄で最新）",
         "versionTip": "デプロイするバージョンを指定（空欄で最新）",
         "releaseName": "リリース名 *",
         "releaseNameTooltip": "Helm リリースを識別するための名前",
@@ -1660,6 +1662,18 @@
         "enterYamlJson": "YAML または JSON の内容を入力してください。",
         "needMetadataName": "少なくとも 1 つのドキュメントに 'metadata.name' が必要です。"
       }
+    },
+    "workloads": {
+      "title": "ワークロード",
+      "description": "クラスター間のワークロードを管理する"
+    },
+    "resourceExplorer": {
+      "title": "オブジェクトエクスプローラー",
+      "description": "Kubernetesオブジェクトを検索およびフィルタリングする"
+    },
+    "bindingPolicies": {
+      "title": "バインディングポリシー",
+      "description": "ワークロードの分配に関するバインディングポリシーを作成・管理します"
     }
   },
   "visualization": {
@@ -2057,9 +2071,13 @@
         "title": "ワークロード",
         "description": "クラスタ間のワークロードを管理"
       },
+      "resourceExplorer": {
+        "title": "オブジェクトエクスプローラー",
+        "description": "Kubernetesオブジェクトを検索およびフィルタリングする"
+      },
       "bindingPolicies": {
         "title": "バインディングポリシー",
-        "description": "バインディングポリシーを構成"
+        "description": "ワークロードの分配に関するバインディングポリシーを作成・管理します"
       },
       "userManagement": {
         "title": "ユーザー管理",
@@ -2081,6 +2099,14 @@
         "title": "ログアウト",
         "description": "アカウントからサインアウト",
         "infoMessage": "正常にログアウトしました。"
+      },
+      "galaxyMarketplace": {
+        "title": "ギャラクシーマーケットプレイス",
+        "description": "ギャラクシーマーケットプレイスからプラグインを見つけてインストールしましょう"
+      },
+      "managedClusters": {
+        "title": "管理クラスター",
+        "description": "Kubernetesクラスターを管理"
       }
     }
   },
@@ -2098,7 +2124,10 @@
       "bindingPolicies": "バインディングポリシー",
       "deployedWorkloads": "デプロイ済みワークロード",
       "pluginManager": "プラグインマネージャー",
-      "userManagement": "ユーザー管理"
+      "userManagement": "ユーザー管理",
+      "galaxyMarketplace": "ギャラクシーマーケットプレイス",
+      "managedClusters": "管理クラスター",
+      "grafana": "グラファナ"
     }
   },
   "plugins": {
@@ -2185,7 +2214,8 @@
       }
     },
     "marketplace": {
-      "title": "プラグインマーケットプレイス",
+      "title": "KubeStellar Galaxy マーケットプレイス",
+      "description": "KubeStellarの体験を向上させるプラグインを見つけてインストール",
       "browse": "利用可能なプラグインを参照",
       "featured": "おすすめプラグイン",
       "categories": "カテゴリ",
@@ -2210,5 +2240,37 @@
         "placeholder": "改善の提案があればご記入ください"
       }
     }
+  },
+  "notFoundPage": {
+    "logoAlt": "KubeStellarロゴ",
+    "mainTitle": "404 - ページが見つかりません",
+    "description": "お探しのページは削除されたか、名前が変更されたか、一時的に利用できない可能性があります。",
+    "returnHomeButton": "ホームに戻る",
+    "tryAgainButton": "再試行",
+    "quotes": [
+      {
+        "text": "コードの広大な宇宙では、時に星々の間で迷子になることがあります。",
+        "author": "匿名の開発者"
+      },
+      {
+        "text": "あまり通られていない道は、理由があって見つからないことが多いのです。",
+        "author": "ウェブ探検家"
+      },
+      {
+        "text": "さまよう者がすべて迷子というわけではありませんが、このページは確かに迷子です。",
+        "author": "J.R.R. トークン"
+      },
+      {
+        "text": "成功は最終的ではなく、404は致命的ではありません：大切なのはナビゲートする勇気です。",
+        "author": "ウィンストン・コードヒル"
+      },
+      {
+        "text": "未来を予測する最良の方法は、適切なルーティングを実装することです。",
+        "author": "アラン・ターニング"
+      }
+    ]
+  },
+  "validation": {
+    "missingRequiredFields": "必須フィールドがありません"
   }
 }

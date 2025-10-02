@@ -1,7 +1,7 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, Suspense, lazy } from 'react';
 import { useK8sQueries } from '../hooks/queries/useK8sQueries';
 import { useClusterQueries } from '../hooks/queries/useClusterQueries';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import ClusterSkeleton from '../components/skeleton/ClusterSkeleton';
 import {
   Activity,
@@ -23,17 +23,47 @@ import {
   BarChart3,
   ClipboardList,
   Shield,
+  User,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import useTheme from '../stores/themeStore';
 import { Link } from 'react-router-dom';
 import { useWDSQueries } from '../hooks/queries/useWDSQueries';
 import { useBPQueries } from '../hooks/queries/useBPQueries';
-import ClusterDetailDialog from '../components/ClusterDetailDialog';
 import { useTranslation } from 'react-i18next';
+import {
+  useUserActivityQuery,
+  useDeletedUsersActivityQuery,
+} from '../hooks/queries/useUserActivityQuery.ts';
+
+// Lazy load the ClusterDetailDialog component
+const ClusterDetailDialog = lazy(
+  () => import('../components/its/ClustersTable/dialogs/ClusterDetailDialog')
+);
 
 // Health indicator component
 const HealthIndicator = ({ value }: { value: number }) => {
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+  // Check for command palette by detecting body overflow hidden
+  useEffect(() => {
+    const checkCommandPalette = () => {
+      setIsCommandPaletteOpen(document.body.style.overflow === 'hidden');
+    };
+
+    // Initial check
+    checkCommandPalette();
+
+    // Watch for body style changes
+    const observer = new MutationObserver(checkCommandPalette);
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['style'],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
   // Memoize the color calculation to avoid recalculating on every render
   const { color, bgGradient } = useMemo(() => {
     if (value >= 90) {
@@ -66,14 +96,18 @@ const HealthIndicator = ({ value }: { value: number }) => {
 
   return (
     <div
-      className={`inline-flex items-center rounded-full px-2 py-1 ${color} relative overflow-hidden shadow-sm transition-colors`}
+      className={`inline-flex items-center rounded-full px-2 py-1 ${color} relative overflow-hidden shadow-sm transition-all duration-200`}
+      style={{
+        filter: isCommandPaletteOpen ? 'blur(5px)' : 'none',
+        pointerEvents: isCommandPaletteOpen ? 'none' : 'auto',
+      }}
     >
       {/* Pulse effect without animation loop */}
       <span
         className="mr-1 flex h-2 w-2 rounded-full bg-white opacity-80"
         style={{ boxShadow: '0 0 5px rgba(255,255,255,0.8)' }}
       ></span>
-      <span className="relative z-10 text-xs font-medium">{value}%</span>
+      <span className="relative z-10 text-xs font-medium">{`${value}% / 100%`}</span>
 
       {/* Static gradient background */}
       <div
@@ -127,7 +161,7 @@ const OptimizedProgressBar = ({
                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
                 <line x1="12" y1="17" x2="12.01" y2="17"></line>
               </svg>
-              <div className="pointer-events-none invisible absolute -left-4 -top-28 z-10 w-64 whitespace-normal rounded-md border border-gray-200 bg-white p-3 text-xs opacity-0 shadow-lg transition-all duration-200 group-hover:visible group-hover:opacity-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
+              <div className="invisible absolute -left-4 -top-40 z-50 max-h-48 w-64 overflow-y-auto whitespace-normal rounded-md border border-gray-200 bg-white p-3 text-xs opacity-0 shadow-lg transition-all duration-200 group-hover:visible group-hover:opacity-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 sm:-top-36 md:-top-32 lg:-top-28">
                 {tooltip}
               </div>
             </>
@@ -144,7 +178,7 @@ const OptimizedProgressBar = ({
         />
         <div className="absolute inset-0 flex items-center justify-center">
           <span className="text-xs font-medium text-gray-700 drop-shadow-sm dark:text-gray-200">
-            {value}%
+            {`${value}% / 100%`}
           </span>
         </div>
       </div>
@@ -219,13 +253,13 @@ interface ProcessedCluster {
 }
 
 // Revised dashboard header and transition animations
-const pageAnimationVariant = {
+const pageAnimationVariant: Variants = {
   initial: { opacity: 0 },
   animate: { opacity: 1, transition: { duration: 0.6, staggerChildren: 0.1 } },
   exit: { opacity: 0, transition: { duration: 0.4 } },
 };
 
-const itemAnimationVariant = {
+const itemAnimationVariant: Variants = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
   exit: { opacity: 0, y: -10, transition: { duration: 0.3 } },
@@ -391,9 +425,9 @@ const StatCard = ({
         </div>
 
         <div className="mt-1 flex items-end justify-between">
-          <div className="flex-grow">
+          <div className="min-w-0 flex-grow">
             <div className="flex items-center">
-              <h3 className="text-3xl font-bold text-gray-900 transition-colors dark:text-gray-50">
+              <h3 className="truncate text-3xl font-bold text-gray-900 transition-colors dark:text-gray-50">
                 {value}
               </h3>
               {isContext && (
@@ -468,6 +502,8 @@ const RecentActivityCard = ({ isDark }: RecentActivityCardProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const { useClusters } = useClusterQueries();
   const { useBindingPolicies } = useBPQueries();
+  const { data: userActivities = [], isLoading: userLoading } = useUserActivityQuery();
+  const { data: deletedActivities = [] } = useDeletedUsersActivityQuery();
 
   // Use the existing query hooks to fetch data
   const {
@@ -483,7 +519,7 @@ const RecentActivityCard = ({ isDark }: RecentActivityCardProps) => {
 
   // Process data function to avoid code duplication
   const processData = useCallback(() => {
-    if (!clustersLoading && !bpLoading && clusterData && bindingPoliciesData) {
+    if (!clustersLoading && !bpLoading && clusterData && bindingPoliciesData && !userLoading) {
       try {
         const items: ActivityItem[] = [];
 
@@ -514,6 +550,8 @@ const RecentActivityCard = ({ isDark }: RecentActivityCardProps) => {
             });
           });
         }
+        items.push(...userActivities.slice(0, 5));
+        items.push(...deletedActivities.slice(0, 5));
 
         // Sort by timestamp (newest first)
         items.sort((a, b) => {
@@ -540,7 +578,7 @@ const RecentActivityCard = ({ isDark }: RecentActivityCardProps) => {
         setIsLoading(false);
       }
     }
-  }, [clustersLoading, bpLoading, clusterData, bindingPoliciesData]);
+  }, [clustersLoading, bpLoading, clusterData, bindingPoliciesData, userLoading, userActivities]);
 
   useEffect(() => {
     processData();
@@ -621,7 +659,14 @@ const RecentActivityCard = ({ isDark }: RecentActivityCardProps) => {
 
   // Status icon based on activity status
   const getStatusIcon = (status: string) => {
-    if (status === 'Active' || status === 'Available' || status === 'Synced') {
+    if (
+      status === 'Active' ||
+      status === 'Available' ||
+      status === 'Synced' ||
+      status === 'Created' ||
+      status === 'Updated' ||
+      status === 'Deleted'
+    ) {
       return <CheckCircle size={12} />;
     } else if (status === 'Warning' || status === 'Pending') {
       return <AlertTriangle size={12} />;
@@ -681,7 +726,13 @@ const RecentActivityCard = ({ isDark }: RecentActivityCardProps) => {
                 const getStatusColors = (
                   status: string
                 ): { bgColor: string; textColor: string } => {
-                  if (status === 'Active' || status === 'Available' || status === 'Synced') {
+                  if (
+                    status === 'Active' ||
+                    status === 'Available' ||
+                    status === 'Synced' ||
+                    status === 'Created' ||
+                    status === 'Updated'
+                  ) {
                     return {
                       bgColor: isDark ? 'bg-green-900/30' : 'bg-green-100',
                       textColor: isDark ? 'text-green-400' : 'text-green-600',
@@ -708,15 +759,21 @@ const RecentActivityCard = ({ isDark }: RecentActivityCardProps) => {
                       text: isDark ? 'text-purple-400' : 'text-purple-600',
                       icon: <FileText size={16} />,
                     }
-                  : {
-                      bg: isDark ? 'bg-blue-900/30' : 'bg-blue-100',
-                      text: isDark ? 'text-blue-400' : 'text-blue-600',
-                      icon: <Server size={16} />,
-                    };
+                  : item.type === 'cluster'
+                    ? {
+                        bg: isDark ? 'bg-blue-900/30' : 'bg-blue-100',
+                        text: isDark ? 'text-blue-400' : 'text-blue-600',
+                        icon: <Server size={16} />,
+                      }
+                    : {
+                        bg: isDark ? 'bg-teal-900/30' : 'bg-teal-100',
+                        text: isDark ? 'text-teal-400' : 'text-teal-600',
+                        icon: <User size={16} />,
+                      };
 
                 return (
                   <Link
-                    to={isPolicy ? '/bp/manage' : '/its'}
+                    to={item.type === 'user' ? '/admin/users' : isPolicy ? '/bp/manage' : '/its'}
                     key={`${item.type}-${item.name}-${index}`}
                     className="block"
                   >
@@ -752,7 +809,7 @@ const RecentActivityCard = ({ isDark }: RecentActivityCardProps) => {
                           <span
                             className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${typeColors.bg} ${typeColors.text} transition-colors`}
                           >
-                            {isPolicy ? 'Policy' : 'Cluster'}
+                            {item.type === 'user' ? 'User' : isPolicy ? 'Policy' : 'Cluster'}
                           </span>
                         </div>
                         <div className="mt-0.5 flex items-center text-xs text-gray-500 transition-colors dark:text-gray-400">
@@ -799,28 +856,49 @@ const RecentActivityCard = ({ isDark }: RecentActivityCardProps) => {
 // Main function for rendering the dashboard
 const K8sInfo = () => {
   const { t } = useTranslation();
-  const { useK8sInfo, usePodHealthQuery, useClusterMetricsQuery } = useK8sQueries();
+  const { useK8sInfo, useClusterMetricsQuery, useAggregatedPodHealthQuery } = useK8sQueries();
   const { useClusters } = useClusterQueries();
   const { useWorkloads } = useWDSQueries();
   const { useBindingPolicies } = useBPQueries();
-  const {
-    data: k8sData,
-    error: k8sError,
-    isLoading: k8sLoading,
-    refetch: refetchK8s,
-  } = useK8sInfo();
-  const { data: clusterData, isLoading: clustersLoading } = useClusters(1);
-  const { data: workloadsData, isLoading: workloadsLoading } = useWorkloads();
-  const { data: bindingPoliciesData, isLoading: bpLoading } = useBindingPolicies();
-  const { data: podHealth, isLoading: podHealthLoading } = usePodHealthQuery();
-  const { data: clusterMetrics, isLoading: metricsLoading } = useClusterMetricsQuery();
+
+  // Optimize queries with staleTime and cacheTime settings
+  const { data: k8sData, error: k8sError, refetch: refetchK8s } = useK8sInfo();
+
+  const { data: clusterData } = useClusters(1, {
+    staleTime: 60000, // 1 minute
+    cacheTime: 300000, // 5 minutes
+  });
+
+  const { data: workloadsData } = useWorkloads({
+    staleTime: 60000,
+    cacheTime: 300000,
+  });
+
+  const { data: bindingPoliciesData } = useBindingPolicies({
+    staleTime: 60000,
+    cacheTime: 300000,
+  });
 
   const theme = useTheme(state => state.theme);
   const isDark = theme === 'dark';
 
+  // Get current context early for use in queries
+  const currentContext = k8sData?.currentContext || '';
+
+  const { data: aggregatedPodHealth } = useAggregatedPodHealthQuery({
+    staleTime: 120000, // 2 minutes
+    cacheTime: 300000,
+  });
+
+  const { data: clusterMetrics } = useClusterMetricsQuery({
+    staleTime: 60000,
+    cacheTime: 300000,
+  });
+
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedCluster, setSelectedCluster] = useState<string | null>(null);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Process and prepare clusters data from API
   const processedClusters = useMemo<ProcessedCluster[]>(() => {
@@ -952,6 +1030,9 @@ const K8sInfo = () => {
         cpuUsage,
         memoryUsage,
       });
+
+      // After initial data load is complete
+      setIsInitialLoad(false);
     }
   }, [k8sData, clusterData, workloadsData, processedClusters, bindingPoliciesData, clusterMetrics]);
 
@@ -986,8 +1067,8 @@ const K8sInfo = () => {
     }
   };
 
-  if (k8sLoading || clustersLoading || workloadsLoading || bpLoading || metricsLoading)
-    return <ClusterSkeleton />;
+  // Show skeleton during initial load
+  if (isInitialLoad) return <ClusterSkeleton />;
 
   if (k8sError)
     return (
@@ -1008,8 +1089,6 @@ const K8sInfo = () => {
         </div>
       </div>
     );
-
-  const currentContext = k8sData?.currentContext || '';
 
   // Sort managed clusters by status, ensuring we handle all possible statuses
   const sortedClusters = [...processedClusters].sort((a, b) => {
@@ -1324,9 +1403,9 @@ const K8sInfo = () => {
               delay={0.2}
             />
 
-            {/* Pod Health with OptimizedProgressBar */}
+            {/* KubeStellar Pod Health */}
             <OptimizedProgressBar
-              value={podHealthLoading || !podHealth ? 0 : Math.round(podHealth.healthPercent)}
+              value={!aggregatedPodHealth ? 0 : Math.round(aggregatedPodHealth.healthPercent)}
               color="bg-gradient-to-br from-emerald-500 to-green-600"
               label={t('clusters.dashboard.pods.health')}
               icon={Layers}
@@ -1342,6 +1421,35 @@ const K8sInfo = () => {
                         {t('clusters.dashboard.pods.formulaDesc')}
                       </code>
                     </div>
+                    {aggregatedPodHealth ? (
+                      <div className="mt-2 rounded-md bg-green-50 p-2 dark:bg-green-900/20">
+                        <div className="flex items-center text-xs text-green-700 dark:text-green-300">
+                          <CheckCircle size={12} className="mr-1" />
+                          KubeStellar Core & KubeFlex Monitoring
+                        </div>
+                        <div className="mt-1 text-xs text-green-700 dark:text-green-300">
+                          {aggregatedPodHealth.contexts.length} KubeStellar contexts
+                        </div>
+                        {aggregatedPodHealth.totalPods > 0 && (
+                          <div className="mt-1 text-xs text-green-700 dark:text-green-300">
+                            Total: {aggregatedPodHealth.totalPods} pods, Healthy:{' '}
+                            {aggregatedPodHealth.healthyPods} ({aggregatedPodHealth.healthPercent}%)
+                          </div>
+                        )}
+                        {aggregatedPodHealth.note && (
+                          <div className="mt-2 text-xs italic text-amber-600 dark:text-amber-400">
+                            {aggregatedPodHealth.note}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mt-2 rounded-md bg-amber-50 p-2 dark:bg-amber-900/20">
+                        <div className="flex items-center text-xs text-amber-700 dark:text-amber-300">
+                          <AlertTriangle size={12} className="mr-1" />
+                          Loading KubeStellar metrics...
+                        </div>
+                      </div>
+                    )}
                     <p className="text-xs italic">{t('clusters.dashboard.pods.status')}</p>
                   </div>
                   <div className="mt-2 border-t border-gray-100 pt-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
@@ -1635,30 +1743,38 @@ const K8sInfo = () => {
         </motion.div>
       </AnimatePresence>
 
-      {/* Add Cluster Detail Dialog */}
+      {/* Add Cluster Detail Dialog with Suspense */}
       {selectedCluster && (
-        <ClusterDetailDialog
-          open={selectedCluster !== null}
-          onClose={() => setSelectedCluster(null)}
-          clusterName={selectedCluster}
-          isDark={isDark}
-          colors={{
-            primary: '#2f86ff',
-            primaryLight: '#38bdf8',
-            primaryDark: '#1d4ed8',
-            secondary: '#10b981',
-            white: isDark ? '#1e293b' : '#ffffff',
-            background: isDark ? '#0f172a' : '#f8fafc',
-            paper: isDark ? '#1e293b' : '#ffffff',
-            text: isDark ? '#f1f5f9' : '#1e293b',
-            textSecondary: isDark ? '#94a3b8' : '#64748b',
-            border: isDark ? '#334155' : '#e2e8f0',
-            success: '#4ade80',
-            warning: '#facc15',
-            error: '#f43f5e',
-            disabled: isDark ? '#475569' : '#cbd5e1',
-          }}
-        />
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 flex items-center justify-center bg-black/20 dark:bg-black/40">
+              Loading...
+            </div>
+          }
+        >
+          <ClusterDetailDialog
+            open={selectedCluster !== null}
+            onClose={() => setSelectedCluster(null)}
+            clusterName={selectedCluster}
+            isDark={isDark}
+            colors={{
+              primary: '#2f86ff',
+              primaryLight: '#38bdf8',
+              primaryDark: '#1d4ed8',
+              secondary: '#10b981',
+              white: isDark ? '#1e293b' : '#ffffff',
+              background: isDark ? '#0f172a' : '#f8fafc',
+              paper: isDark ? '#1e293b' : '#ffffff',
+              text: isDark ? '#f1f5f9' : '#1e293b',
+              textSecondary: isDark ? '#94a3b8' : '#64748b',
+              border: isDark ? '#334155' : '#e2e8f0',
+              success: '#4ade80',
+              warning: '#facc15',
+              error: '#f43f5e',
+              disabled: isDark ? '#475569' : '#cbd5e1',
+            }}
+          />
+        </Suspense>
       )}
     </motion.div>
   );

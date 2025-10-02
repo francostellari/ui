@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kubestellar/ui/backend/api"
 	"github.com/kubestellar/ui/backend/telemetry"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -45,8 +44,6 @@ func SetupRoutes(router *gin.Engine) {
 	setupAuthRoutes(router)
 	setupArtifactHubRoutes(router)
 	setupPluginRoutes(router)
+	setupMarketplaceRoutes(router)
 	setupMetricsRoutes(router)
-	router.GET("/api/v1/metrics", func(c *gin.Context) {
-		api.GetMetrics(c)
-	})
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import useTheme from '../stores/themeStore';
 import getThemeStyles from '../lib/theme-utils';
 import {
@@ -13,10 +14,12 @@ import {
   FiBox,
   FiLogOut,
   FiUsers,
+  FiBarChart2,
 } from 'react-icons/fi';
 import { useAuthActions, useAdminCheck } from '../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
 import { HiOutlinePuzzlePiece } from 'react-icons/hi2';
+import { FaRocket } from 'react-icons/fa';
 
 // Command types to support various actions
 type CommandType = 'navigation' | 'action' | 'documentation' | 'admin';
@@ -105,8 +108,8 @@ const CommandPalette: React.FC = () => {
       id: 'clusters',
       type: 'navigation',
       icon: FiServer,
-      title: t('commandPalette.commands.clusters.title'),
-      description: t('commandPalette.commands.clusters.description'),
+      title: t('commandPalette.commands.managedClusters.title'),
+      description: t('commandPalette.commands.managedClusters.description'),
       action: () => navigate('/its'),
       keywords: [
         'kubernetes',
@@ -115,7 +118,7 @@ const CommandPalette: React.FC = () => {
         'import',
         'onboard',
         'clusters',
-        'remote',
+        'managed',
         'clusters',
         'kubernetes',
         'k8s',
@@ -154,6 +157,29 @@ const CommandPalette: React.FC = () => {
       section: t('commandPalette.sections.navigation'),
     },
     {
+      id: 'resourceExplorer',
+      type: 'navigation',
+      icon: FiSearch,
+      title: t('commandPalette.commands.resourceExplorer.title'),
+      description: t('commandPalette.commands.resourceExplorer.description'),
+      action: () => navigate('/resources'),
+      keywords: [
+        'resource',
+        'explorer',
+        'search',
+        'filter',
+        'kubernetes',
+        'k8s',
+        'resources',
+        'pods',
+        'services',
+        'deployments',
+        'nodes',
+        'namespaces',
+      ],
+      section: t('commandPalette.sections.navigation'),
+    },
+    {
       id: 'plugin',
       type: 'navigation',
       icon: HiOutlinePuzzlePiece,
@@ -181,6 +207,49 @@ const CommandPalette: React.FC = () => {
         'bp',
         'rules',
         'configuration',
+      ],
+      section: t('commandPalette.sections.navigation'),
+    },
+    {
+      id: 'metrics-dashboard',
+      type: 'navigation',
+      icon: FiBarChart2,
+      title: t('commandPalette.commands.metricsDashboard.title') || 'Metrics Dashboard',
+      description:
+        t('commandPalette.commands.metricsDashboard.description') ||
+        'Monitor system performance and metrics',
+      action: () => navigate('/metrics'),
+      keywords: [
+        'metrics',
+        'dashboard',
+        'monitoring',
+        'performance',
+        'prometheus',
+        'analytics',
+        'stats',
+        'system health',
+        'cache',
+        'runtime',
+        'cluster',
+      ],
+      section: t('commandPalette.sections.navigation'),
+    },
+    {
+      id: 'galaxy-marketplace',
+      type: 'navigation',
+      icon: FaRocket,
+      title: t('commandPalette.commands.galaxyMarketplace.title'),
+      description: t('commandPalette.commands.galaxyMarketplace.description'),
+      action: () => navigate('/plugins/marketplace'),
+      keywords: [
+        'galaxy',
+        'marketplace',
+        'plugins',
+        'galaxy marketplace',
+        'discover',
+        'explore',
+        'search',
+        'install',
       ],
       section: t('commandPalette.sections.navigation'),
     },
@@ -254,7 +323,7 @@ const CommandPalette: React.FC = () => {
       title: t('commandPalette.commands.documentation.title'),
       description: t('commandPalette.commands.documentation.description'),
       action: () =>
-        window.open('https://docs.kubestellar.io/release-0.27.2/', '_blank', 'noopener,noreferrer'),
+        window.open('https://docs.kubestellar.io/latest/', '_blank', 'noopener,noreferrer'),
       keywords: [
         'docs',
         'help',
@@ -352,16 +421,22 @@ const CommandPalette: React.FC = () => {
 
   // Scroll to ensure selected item is visible
   useEffect(() => {
-    if (commandListRef.current && filteredCommands.length > 0) {
-      const selectedElement = commandListRef.current.children[selectedIndex] as HTMLElement;
+    if (commandListRef.current && filteredCommands.length > 0 && selectedIndex >= 0) {
+      // Find all command buttons within the command list
+      const commandButtons = commandListRef.current.querySelectorAll('[data-command-index]');
+      const selectedElement = commandButtons[selectedIndex] as HTMLElement;
+
       if (selectedElement) {
-        selectedElement.scrollIntoView({ block: 'nearest' });
+        selectedElement.scrollIntoView({
+          block: 'nearest',
+          behavior: 'smooth',
+        });
       }
     }
   }, [selectedIndex, filteredCommands.length]);
 
   // Command button icon variants
-  const iconVariants = {
+  const iconVariants: Variants = {
     rest: {
       rotate: 0,
       scale: 1,
@@ -410,10 +485,13 @@ const CommandPalette: React.FC = () => {
           style={{
             color: themeStyles.colors.text.primary,
             background: themeStyles.button.secondary.background,
-            boxShadow: themeStyles.colors.shadow.sm,
+            boxShadow: isOpen
+              ? `${themeStyles.colors.shadow.sm}, 0 0 0 3px ${themeStyles.colors.brand.primary}`
+              : themeStyles.colors.shadow.sm,
             overflow: 'hidden',
           }}
           aria-label={t('commandPalette.ariaLabel')}
+          aria-expanded={isOpen}
         >
           <motion.div
             className="absolute inset-0 rounded-full"
@@ -458,221 +536,228 @@ const CommandPalette: React.FC = () => {
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Backdrop - subtle for header dropdown style */}
-            <motion.div
-              className="fixed inset-0 z-40"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsOpen(false)}
-              style={{
-                backgroundColor: 'rgba(0, 0, 0, 0.45)',
-                backdropFilter: 'blur(6px)',
-                WebkitBackdropFilter: 'blur(6px)',
-                pointerEvents: 'auto',
-              }}
-            />
-
-            {/* Command palette dropdown */}
-            <motion.div
-              className="absolute right-4 z-50 mt-2 w-80 origin-top-right sm:w-96 md:right-8 md:w-[30rem]"
-              style={{
-                top: '100%',
-                filter: 'drop-shadow(0 10px 15px rgba(0, 0, 0, 0.15))',
-                transformOrigin: 'top right',
-              }}
-              initial={{ opacity: 0, y: -10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -5, scale: 0.95 }}
-              transition={{
-                type: 'spring',
-                stiffness: 500,
-                damping: 30,
-                mass: 0.8,
-              }}
-            >
-              <div
-                className="flex max-h-[calc(100vh-120px)] flex-col rounded-lg border"
+            {createPortal(
+              <motion.div
+                className="fixed inset-0 z-[100]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2, delay: 0.08 }}
+                onClick={() => setIsOpen(false)}
                 style={{
-                  background: isDark ? 'rgba(17, 24, 39, 0.85)' : 'rgba(255, 255, 255, 0.9)',
-                  backdropFilter: 'blur(8px)',
-                  borderColor: isDark ? 'rgba(75, 85, 99, 0.4)' : 'rgba(226, 232, 240, 0.8)',
-                  boxShadow: isDark
-                    ? '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2)'
-                    : '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+                  backgroundColor: 'rgba(0, 0, 0, 0.45)',
+                  pointerEvents: 'auto',
+                }}
+              />,
+              document.body
+            )}
+
+            {createPortal(
+              <motion.div
+                className="fixed inset-0 z-[110] flex justify-center md:justify-end"
+                style={{ pointerEvents: 'none' }}
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                transition={{
+                  type: 'spring',
+                  stiffness: 500,
+                  damping: 30,
+                  mass: 0.8,
                 }}
               >
-                {/* Search input */}
-                <div
-                  className="shrink-0 border-b p-3"
-                  style={{
-                    borderColor: isDark ? 'rgba(75, 85, 99, 0.4)' : 'rgba(226, 232, 240, 0.8)',
-                    background: isDark ? 'rgba(31, 41, 55, 0.7)' : 'rgba(249, 250, 251, 0.7)',
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <FiSearch
-                      className="text-lg"
-                      style={{ color: themeStyles.colors.text.tertiary }}
-                    />
-                    <input
-                      ref={inputRef}
-                      type="text"
-                      value={searchQuery}
-                      onChange={e => {
-                        setSearchQuery(e.target.value);
-                        setSelectedIndex(0);
-                      }}
-                      onKeyDown={handleKeyDown}
-                      placeholder={t('commandPalette.searchPlaceholder')}
-                      className="w-full bg-transparent text-base focus:outline-none"
-                      style={{
-                        color: themeStyles.colors.text.primary,
-                      }}
-                      autoComplete="off"
-                    />
-                    <kbd
-                      className="hidden items-center rounded px-1.5 py-0.5 text-xs font-semibold sm:inline-flex"
-                      style={{
-                        background: isDark ? 'rgba(55, 65, 81, 0.5)' : 'rgba(229, 231, 235, 0.5)',
-                        color: themeStyles.colors.text.secondary,
-                      }}
-                    >
-                      {t('commandPalette.kbd.esc')}
-                    </kbd>
-                  </div>
-                </div>
-
-                {/* Command list - completely revised scrolling area */}
-                <div
-                  className="flex-1 overflow-y-auto overflow-x-hidden"
-                  style={{
-                    scrollbarWidth: 'thin',
-                    scrollbarColor: `${themeStyles.colors.brand.primary} transparent`,
-                    WebkitOverflowScrolling: 'touch',
-                    msOverflowStyle: 'auto',
-                  }}
-                  ref={commandListRef}
-                >
-                  {filteredCommands.length === 0 ? (
+                <div className="pointer-events-auto mt-[96px] w-80 sm:w-96 md:mr-8 md:w-[30rem]">
+                  <div
+                    className="flex max-h-[calc(100vh-160px)] flex-col rounded-lg border"
+                    style={{
+                      background: isDark ? 'rgba(17, 24, 39, 1)' : 'rgba(255, 255, 255, 1)',
+                      borderColor: isDark ? 'rgba(75, 85, 99, 0.4)' : 'rgba(226, 232, 240, 0.8)',
+                      boxShadow: isDark
+                        ? '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2)'
+                        : '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+                    }}
+                  >
+                    {/* Search input */}
                     <div
-                      className="px-3 py-8 text-center"
-                      style={{ color: themeStyles.colors.text.tertiary }}
+                      className="shrink-0 border-b p-3"
+                      style={{
+                        borderColor: isDark ? 'rgba(75, 85, 99, 0.4)' : 'rgba(226, 232, 240, 0.8)',
+                        background: isDark ? 'rgba(31, 41, 55, 1)' : 'rgba(249, 250, 251, 1)',
+                      }}
                     >
-                      {t('commandPalette.noCommandsFound')}
+                      <div className="flex items-center gap-2">
+                        <FiSearch
+                          className="text-lg"
+                          style={{ color: themeStyles.colors.text.tertiary }}
+                        />
+                        <input
+                          ref={inputRef}
+                          type="text"
+                          value={searchQuery}
+                          onChange={e => {
+                            setSearchQuery(e.target.value);
+                            setSelectedIndex(0);
+                          }}
+                          onKeyDown={handleKeyDown}
+                          placeholder={t('commandPalette.searchPlaceholder')}
+                          className="w-full bg-transparent text-base focus:outline-none"
+                          style={{
+                            color: themeStyles.colors.text.primary,
+                          }}
+                          autoComplete="off"
+                        />
+                        <kbd
+                          className="hidden items-center rounded px-1.5 py-0.5 text-xs font-semibold sm:inline-flex"
+                          style={{
+                            background: isDark
+                              ? 'rgba(55, 65, 81, 0.5)'
+                              : 'rgba(229, 231, 235, 0.5)',
+                            color: themeStyles.colors.text.secondary,
+                          }}
+                        >
+                          {t('commandPalette.kbd.esc')}
+                        </kbd>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="py-1">
-                      {searchQuery ? (
-                        // Show flat list when searching
-                        <div>
-                          {filteredCommands.map((command, index) => (
-                            <CommandListItem
-                              key={command.id}
-                              command={command}
-                              index={index}
-                              selectedIndex={selectedIndex}
-                              executeCommand={executeCommand}
-                              setSelectedIndex={setSelectedIndex}
-                              isDark={isDark}
-                              themeStyles={themeStyles}
-                              compact
-                            />
-                          ))}
+
+                    {/* Command list - completely revised scrolling area */}
+                    <div
+                      className="flex-1 overflow-y-auto overflow-x-hidden"
+                      style={{
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: `${themeStyles.colors.brand.primary} transparent`,
+                        WebkitOverflowScrolling: 'touch',
+                        msOverflowStyle: 'auto',
+                      }}
+                      ref={commandListRef}
+                    >
+                      {filteredCommands.length === 0 ? (
+                        <div
+                          className="px-3 py-8 text-center"
+                          style={{ color: themeStyles.colors.text.tertiary }}
+                        >
+                          {t('commandPalette.noCommandsFound')}
                         </div>
                       ) : (
-                        // Show grouped list when not searching
-                        <div>
-                          {groupedCommands.map(([section, items]: [string, CommandItem[]]) => (
-                            <div key={section} className="relative mb-2">
-                              <div
-                                className="sticky top-0 z-10 px-3 py-1 text-xs font-semibold uppercase"
-                                style={{
-                                  color: themeStyles.colors.text.tertiary,
-                                  background: isDark
-                                    ? 'rgba(17, 24, 39, 0.95)'
-                                    : 'rgba(249, 250, 251, 0.95)',
-                                  backdropFilter: 'blur(8px)',
-                                }}
-                              >
-                                {section}
-                              </div>
-                              <div className="pb-1">
-                                {items.map((command: CommandItem) => {
-                                  const globalIdx = filteredCommands.findIndex(
-                                    c => c.id === command.id
-                                  );
-                                  return (
-                                    <CommandListItem
-                                      key={command.id}
-                                      command={command}
-                                      index={globalIdx}
-                                      selectedIndex={selectedIndex}
-                                      executeCommand={executeCommand}
-                                      setSelectedIndex={setSelectedIndex}
-                                      isDark={isDark}
-                                      themeStyles={themeStyles}
-                                      compact
-                                    />
-                                  );
-                                })}
-                              </div>
+                        <div className="py-1">
+                          {searchQuery ? (
+                            // Show flat list when searching
+                            <div>
+                              {filteredCommands.map((command, index) => (
+                                <CommandListItem
+                                  key={command.id}
+                                  command={command}
+                                  index={index}
+                                  selectedIndex={selectedIndex}
+                                  executeCommand={executeCommand}
+                                  setSelectedIndex={setSelectedIndex}
+                                  isDark={isDark}
+                                  themeStyles={themeStyles}
+                                  compact
+                                />
+                              ))}
                             </div>
-                          ))}
+                          ) : (
+                            // Show grouped list when not searching
+                            <div>
+                              {groupedCommands.map(([section, items]: [string, CommandItem[]]) => (
+                                <div key={section} className="relative mb-2">
+                                  <div
+                                    className="sticky top-0 z-10 px-3 py-1 text-xs font-semibold uppercase"
+                                    style={{
+                                      color: themeStyles.colors.text.tertiary,
+                                      background: isDark
+                                        ? 'rgba(17, 24, 39, 1)'
+                                        : 'rgba(249, 250, 251, 1)',
+                                    }}
+                                  >
+                                    {section}
+                                  </div>
+                                  <div className="pb-1">
+                                    {items.map((command: CommandItem) => {
+                                      const globalIdx = filteredCommands.findIndex(
+                                        c => c.id === command.id
+                                      );
+                                      return (
+                                        <CommandListItem
+                                          key={command.id}
+                                          command={command}
+                                          index={globalIdx}
+                                          selectedIndex={selectedIndex}
+                                          executeCommand={executeCommand}
+                                          setSelectedIndex={setSelectedIndex}
+                                          isDark={isDark}
+                                          themeStyles={themeStyles}
+                                          compact
+                                        />
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
 
-                {/* Footer with hints - more compact */}
-                <div
-                  className="flex shrink-0 items-center justify-between border-t px-3 py-1.5 text-xs"
-                  style={{
-                    borderColor: isDark ? 'rgba(75, 85, 99, 0.4)' : 'rgba(226, 232, 240, 0.8)',
-                    color: themeStyles.colors.text.tertiary,
-                    background: isDark ? 'rgba(31, 41, 55, 0.7)' : 'rgba(249, 250, 251, 0.7)',
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1">
-                      <kbd
-                        className="inline-flex min-w-4 items-center justify-center rounded px-1 py-0.5 text-xs font-semibold"
-                        style={{
-                          background: isDark ? 'rgba(55, 65, 81, 0.5)' : 'rgba(229, 231, 235, 0.5)',
-                        }}
-                      >
-                        {t('commandPalette.kbd.arrows')}
-                      </kbd>
-                      <span className="ml-0.5">{t('commandPalette.footer.navigate')}</span>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <kbd
-                        className="inline-flex min-w-4 items-center justify-center rounded px-1 py-0.5 text-xs font-semibold"
-                        style={{
-                          background: isDark ? 'rgba(55, 65, 81, 0.5)' : 'rgba(229, 231, 235, 0.5)',
-                        }}
-                      >
-                        {t('commandPalette.kbd.enter')}
-                      </kbd>
-                      <span className="ml-0.5">{t('commandPalette.footer.select')}</span>
-                    </div>
-                  </div>
-
-                  <div className="hidden sm:block">
-                    <kbd
-                      className="mx-1 inline-flex min-w-4 items-center justify-center rounded px-1 py-0.5 text-xs font-semibold"
+                    {/* Footer with hints - more compact */}
+                    <div
+                      className="flex shrink-0 items-center justify-between border-t px-3 py-1.5 text-xs"
                       style={{
-                        background: isDark ? 'rgba(55, 65, 81, 0.5)' : 'rgba(229, 231, 235, 0.5)',
+                        borderColor: isDark ? 'rgba(75, 85, 99, 0.4)' : 'rgba(226, 232, 240, 0.8)',
+                        color: themeStyles.colors.text.tertiary,
+                        background: isDark ? 'rgba(31, 41, 55, 0.7)' : 'rgba(249, 250, 251, 0.7)',
                       }}
                     >
-                      {t('commandPalette.footer.shortcut')}
-                    </kbd>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          <kbd
+                            className="inline-flex min-w-4 items-center justify-center rounded px-1 py-0.5 text-xs font-semibold"
+                            style={{
+                              background: isDark
+                                ? 'rgba(55, 65, 81, 0.5)'
+                                : 'rgba(229, 231, 235, 0.5)',
+                            }}
+                          >
+                            {t('commandPalette.kbd.arrows')}
+                          </kbd>
+                          <span className="ml-0.5">{t('commandPalette.footer.navigate')}</span>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <kbd
+                            className="inline-flex min-w-4 items-center justify-center rounded px-1 py-0.5 text-xs font-semibold"
+                            style={{
+                              background: isDark
+                                ? 'rgba(55, 65, 81, 0.5)'
+                                : 'rgba(229, 231, 235, 0.5)',
+                            }}
+                          >
+                            {t('commandPalette.kbd.enter')}
+                          </kbd>
+                          <span className="ml-0.5">{t('commandPalette.footer.select')}</span>
+                        </div>
+                      </div>
+
+                      <div className="hidden sm:block">
+                        <kbd
+                          className="mx-1 inline-flex min-w-4 items-center justify-center rounded px-1 py-0.5 text-xs font-semibold"
+                          style={{
+                            background: isDark
+                              ? 'rgba(55, 65, 81, 0.5)'
+                              : 'rgba(229, 231, 235, 0.5)',
+                          }}
+                        >
+                          {t('commandPalette.footer.shortcut')}
+                        </kbd>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>,
+              document.body
+            )}
           </>
         )}
       </AnimatePresence>
@@ -726,68 +811,87 @@ const CommandListItem: React.FC<CommandListItemProps> = ({
 
     switch (type) {
       case 'admin':
-        return isDark ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.05)';
+        return isDark ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.08)';
       default:
-        return isDark ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)';
+        return isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.08)';
     }
   };
 
-  // Set border color based on command type
-  const getBorderColor = (isSelected: boolean, type: CommandType) => {
-    if (!isSelected) return '2px solid transparent';
+  // Set border style based on command type
+  const getBorderStyle = (isSelected: boolean, type: CommandType) => {
+    if (!isSelected)
+      return {
+        border: '1px solid transparent',
+        borderRadius: '6px',
+      };
 
     switch (type) {
       case 'admin':
-        return `2px solid ${isDark ? '#f87171' : '#ef4444'}`;
+        return {
+          border: `2px solid ${isDark ? '#f87171' : '#ef4444'}`,
+          borderRadius: '6px',
+          boxShadow: isDark
+            ? '0 0 0 1px rgba(248, 113, 113, 0.2)'
+            : '0 0 0 1px rgba(239, 68, 68, 0.1)',
+        };
       default:
-        return `2px solid ${themeStyles.colors.brand.primary}`;
+        return {
+          border: `2px solid ${themeStyles.colors.brand.primary}`,
+          borderRadius: '6px',
+          boxShadow: isDark
+            ? '0 0 0 1px rgba(59, 130, 246, 0.3)'
+            : '0 0 0 1px rgba(59, 130, 246, 0.2)',
+        };
     }
   };
 
   return (
-    <motion.button
-      className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors duration-200`}
-      style={{
-        background: getItemBackground(selectedIndex === index, command.type),
-        borderLeft: getBorderColor(selectedIndex === index, command.type),
-      }}
-      onClick={() => executeCommand(command)}
-      onMouseEnter={() => setSelectedIndex(index)}
-      whileHover={{ x: 2 }}
-    >
-      <div
-        className="flex h-8 min-w-8 items-center justify-center rounded-md"
+    <div className="px-2 py-1">
+      <motion.button
+        className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-all duration-200`}
         style={{
-          background: isDark ? 'rgba(55, 65, 81, 0.5)' : 'rgba(243, 244, 246, 0.7)',
+          background: getItemBackground(selectedIndex === index, command.type),
+          ...getBorderStyle(selectedIndex === index, command.type),
         }}
+        onClick={() => executeCommand(command)}
+        onMouseEnter={() => setSelectedIndex(index)}
+        whileHover={{ x: 2 }}
+        data-command-index={index}
       >
-        <command.icon className="text-base" style={{ color: getIconColor(command.type) }} />
-      </div>
-      <div className="min-w-0 flex-1">
         <div
-          className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium"
-          style={{ color: themeStyles.colors.text.primary }}
+          className="flex h-8 min-w-8 items-center justify-center rounded-md"
+          style={{
+            background: isDark ? 'rgba(55, 65, 81, 0.5)' : 'rgba(243, 244, 246, 0.7)',
+          }}
         >
-          {command.title}
+          <command.icon className="text-base" style={{ color: getIconColor(command.type) }} />
         </div>
-        {!compact && (
+        <div className="min-w-0 flex-1">
           <div
-            className="overflow-hidden text-ellipsis whitespace-nowrap text-xs"
-            style={{ color: themeStyles.colors.text.secondary }}
+            className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium"
+            style={{ color: themeStyles.colors.text.primary }}
           >
-            {command.description}
+            {command.title}
           </div>
-        )}
-        {compact && (
-          <div
-            className="overflow-hidden text-ellipsis whitespace-nowrap text-xs"
-            style={{ color: themeStyles.colors.text.tertiary }}
-          >
-            {command.description}
-          </div>
-        )}
-      </div>
-    </motion.button>
+          {!compact && (
+            <div
+              className="overflow-hidden text-ellipsis whitespace-nowrap text-xs"
+              style={{ color: themeStyles.colors.text.secondary }}
+            >
+              {command.description}
+            </div>
+          )}
+          {compact && (
+            <div
+              className="overflow-hidden text-ellipsis whitespace-nowrap text-xs"
+              style={{ color: themeStyles.colors.text.tertiary }}
+            >
+              {command.description}
+            </div>
+          )}
+        </div>
+      </motion.button>
+    </div>
   );
 };
 

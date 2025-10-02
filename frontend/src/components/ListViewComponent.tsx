@@ -5,6 +5,7 @@ import ListViewSkeleton from './skeleton/ListViewSkeleton';
 import { api } from '../lib/api';
 import DownloadLogsButton from './DownloadLogsButton';
 import { useTranslation } from 'react-i18next';
+import ObjectFilters, { ObjectFilter } from './ObjectFilters';
 
 // Define the response interfaces
 export interface ResourceItem {
@@ -55,11 +56,15 @@ interface ListViewComponentProps {
     contextCounts: Record<string, number>;
     totalCount: number;
   }) => void;
+  initialResourceFilters?: ObjectFilter;
+  onResourceFiltersChange?: (filters: ObjectFilter) => void;
 }
 
 const ListViewComponent = ({
   filteredContext = 'all',
   onResourceDataChange,
+  initialResourceFilters = {},
+  onResourceFiltersChange,
 }: ListViewComponentProps) => {
   const { t } = useTranslation();
   const theme = useTheme(state => state.theme);
@@ -71,11 +76,38 @@ const ListViewComponent = ({
   const [error, setError] = useState<string | null>(null);
   const resourcesRef = useRef<ResourceItem[]>([]);
   const [totalRawResources, setTotalRawResources] = useState<number>(0); // Track raw resources count
+  const isUnmountedRef = useRef(false);
 
   // Add pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(25);
-  const [totalItems, setTotalItems] = useState<number>(0);
+
+  // Add resource filters state - use a ref to track if this is the initial mount
+  const [resourceFilters, setResourceFilters] = useState<ObjectFilter>(initialResourceFilters);
+  const prevFiltersRef = useRef({ filteredContext, resourceFilters: initialResourceFilters });
+  const isInitialMountRef = useRef(true);
+  const lastInitialFiltersRef = useRef<ObjectFilter>(initialResourceFilters);
+
+  // Initialize filters from props only on mount or meaningful changes from parent
+  useEffect(() => {
+    // On initial mount, always use the provided filters
+    if (isInitialMountRef.current) {
+      setResourceFilters(initialResourceFilters);
+      lastInitialFiltersRef.current = initialResourceFilters;
+      isInitialMountRef.current = false;
+      return;
+    }
+
+    // Only update if the initialResourceFilters actually changed from what we last received
+    // This prevents loops where parent updates filters in response to our onResourceFiltersChange
+    const initialFiltersChanged =
+      JSON.stringify(lastInitialFiltersRef.current) !== JSON.stringify(initialResourceFilters);
+
+    if (initialFiltersChanged && Object.keys(initialResourceFilters).length > 0) {
+      setResourceFilters(initialResourceFilters);
+      lastInitialFiltersRef.current = initialResourceFilters;
+    }
+  }, [initialResourceFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Add useEffect to notify parent of resource data changes
   useEffect(() => {
@@ -97,26 +129,61 @@ const ListViewComponent = ({
     }
   }, [resources, filteredResources, onResourceDataChange]);
 
-  // Add effect to filter resources when filteredContext changes
+  // Add effect to filter resources when filteredContext or resourceFilters changes
   useEffect(() => {
-    if (filteredContext === 'all') {
-      setFilteredResources(resources);
-      setTotalItems(resources.length);
-    } else {
-      const filtered = resources.filter(resource => resource.context === filteredContext);
-      setFilteredResources(filtered);
-      setTotalItems(filtered.length);
+    let filtered = resources;
+
+    // First apply context filter
+    if (filteredContext !== 'all') {
+      filtered = filtered.filter(resource => resource.context === filteredContext);
     }
+
+    // Then apply resource filters
+    if (resourceFilters.kind) {
+      filtered = filtered.filter(resource => resource.kind === resourceFilters.kind);
+    }
+
+    if (resourceFilters.namespace) {
+      filtered = filtered.filter(resource => resource.namespace === resourceFilters.namespace);
+    }
+
+    if (resourceFilters.label) {
+      filtered = filtered.filter(
+        resource =>
+          resource.labels &&
+          resource.labels[resourceFilters.label!.key] === resourceFilters.label!.value
+      );
+    }
+
+    if (resourceFilters.searchQuery) {
+      const searchLower = resourceFilters.searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        resource =>
+          resource.name.toLowerCase().includes(searchLower) ||
+          resource.kind.toLowerCase().includes(searchLower) ||
+          resource.namespace.toLowerCase().includes(searchLower) ||
+          (resource.status && resource.status.toLowerCase().includes(searchLower))
+      );
+    }
+
+    setFilteredResources(filtered);
+
     // Log resources stats for debugging
     console.log(`[ListViewComponent] Resource counts: 
       - Total raw resources: ${totalRawResources}
       - Resources after processing: ${resources.length}
-      - Filtered resources (${filteredContext}): ${filteredContext === 'all' ? resources.length : resources.filter(r => r.context === filteredContext).length}
+      - Filtered resources (${filteredContext}): ${filtered.length}
     `);
 
-    // Reset to first page when filter changes
-    setCurrentPage(1);
-  }, [filteredContext, resources, totalRawResources]);
+    const filtersChanged =
+      prevFiltersRef.current.filteredContext !== filteredContext ||
+      JSON.stringify(prevFiltersRef.current.resourceFilters) !== JSON.stringify(resourceFilters);
+
+    if (filtersChanged) {
+      setCurrentPage(1);
+      prevFiltersRef.current = { filteredContext, resourceFilters };
+    }
+  }, [filteredContext, resources, totalRawResources, resourceFilters]);
 
   // Function to format date strings properly
   const formatCreatedAt = (dateString: string): string => {
@@ -152,6 +219,7 @@ const ListViewComponent = ({
   useEffect(() => {
     let isMounted = true;
     let eventSource: EventSource | null = null;
+    isUnmountedRef.current = false;
 
     const processCompleteData = (data: CompleteEventData): ResourceItem[] => {
       const resourceList: ResourceItem[] = [];
@@ -178,10 +246,11 @@ const ListViewComponent = ({
               kind: item.kind || kind,
               name: item.name,
               namespace: item.namespace || '',
+              labels: item.labels || {},
               project: 'default',
               source: sourceUrl,
               destination: `in-cluster/${item.namespace || 'default'}`,
-              context: context, // Add context information
+              context: context,
             });
           });
         });
@@ -207,6 +276,7 @@ const ListViewComponent = ({
                 kind: item.kind || kind,
                 name: item.name,
                 namespace: item.namespace || namespace,
+                labels: item.labels || {}, // Include labels from SSE data
                 project: 'default',
                 source: sourceUrl,
                 destination: `in-cluster/${item.namespace || namespace}`,
@@ -231,6 +301,7 @@ const ListViewComponent = ({
     };
 
     const fetchDataWithSSE = () => {
+      if (isUnmountedRef.current) return;
       setIsLoading(true);
       setInitialLoading(true);
       setLoadingMessage(t('listView.connecting'));
@@ -247,6 +318,7 @@ const ListViewComponent = ({
 
         // Handle connection open
         eventSource.onopen = () => {
+          if (isUnmountedRef.current) return;
           if (isMounted) {
             setLoadingMessage(t('listView.receivingWorkloads'));
             // Keep isLoading true, but set initialLoading to false so we can show the items as they arrive
@@ -256,6 +328,7 @@ const ListViewComponent = ({
 
         // Handle progress events
         eventSource.addEventListener('progress', (event: MessageEvent) => {
+          if (isUnmountedRef.current) return;
           if (!isMounted) return;
 
           try {
@@ -278,6 +351,7 @@ const ListViewComponent = ({
                   kind: item.kind || 'Unknown',
                   name: item.name || 'unknown',
                   namespace: item.namespace || 'Cluster',
+                  labels: item.labels || {}, // Include labels from SSE progress data
                   project: 'default',
                   source: sourceUrl,
                   destination: `in-cluster/${item.namespace || 'default'}`,
@@ -307,6 +381,7 @@ const ListViewComponent = ({
 
         // Handle complete event
         eventSource.addEventListener('complete', (event: MessageEvent) => {
+          if (isUnmountedRef.current) return;
           if (!isMounted) return;
 
           try {
@@ -382,6 +457,7 @@ const ListViewComponent = ({
 
         // Handle errors
         eventSource.onerror = err => {
+          if (isUnmountedRef.current) return;
           console.error('SSE connection error', err);
 
           if (isMounted) {
@@ -414,6 +490,7 @@ const ListViewComponent = ({
           }
         };
       } catch (error: unknown) {
+        if (isUnmountedRef.current) return;
         // Fall back to regular API if SSE fails
         console.error('SSE connection establishment error', error);
         fetchFallbackData();
@@ -421,6 +498,7 @@ const ListViewComponent = ({
     };
 
     const fetchFallbackData = async () => {
+      if (isUnmountedRef.current) return;
       // Regular API fallback in case SSE doesn't work
       setInitialLoading(true);
       setLoadingMessage(t('listView.fetchingFallback'));
@@ -468,6 +546,7 @@ const ListViewComponent = ({
     fetchDataWithSSE();
 
     return () => {
+      isUnmountedRef.current = true;
       isMounted = false;
       if (eventSource) {
         eventSource.close();
@@ -476,7 +555,8 @@ const ListViewComponent = ({
   }, [t]); // Keep original dependencies
 
   // Calculate pagination values using filteredResources instead of resources
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const actualTotalItems = filteredResources.length;
+  const totalPages = Math.ceil(actualTotalItems / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredResources.slice(indexOfFirstItem, indexOfLastItem);
@@ -488,28 +568,39 @@ const ListViewComponent = ({
     }
   };
 
-  // Generate page numbers
   const getPageNumbers = useCallback((): (number | string)[] => {
     if (totalPages <= 1) return [1];
+    if (totalPages <= 7) {
+      // If we have 7 or fewer pages, show them all
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
 
     const range: (number | string)[] = [];
-    let lastNumber: number | null = null;
 
     range.push(1);
 
-    for (let i = currentPage - 1; i <= currentPage + 1; i++) {
-      if (i > 1 && i < totalPages) {
-        if (lastNumber && i > lastNumber + 1) {
-          range.push('...');
-        }
+    if (currentPage <= 4) {
+      for (let i = 2; i <= Math.min(5, totalPages - 1); i++) {
         range.push(i);
-        lastNumber = i;
       }
-    }
-
-    if (lastNumber && totalPages > lastNumber + 1) {
+      if (totalPages > 6) {
+        range.push('...');
+      }
+    } else if (currentPage >= totalPages - 3) {
+      if (totalPages > 6) {
+        range.push('...');
+      }
+      for (let i = Math.max(totalPages - 4, 2); i <= totalPages - 1; i++) {
+        range.push(i);
+      }
+    } else {
+      range.push('...');
+      for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+        range.push(i);
+      }
       range.push('...');
     }
+
     if (totalPages > 1) {
       range.push(totalPages);
     }
@@ -520,6 +611,20 @@ const ListViewComponent = ({
   // Retry handler for when errors occur
   const handleRetry = () => {
     window.location.reload();
+  };
+
+  // Handle resource filter changes
+  const handleResourceFiltersChange = (filters: ObjectFilter) => {
+    // Only update if filters actually changed to prevent unnecessary re-renders and loops
+    const filtersChanged = JSON.stringify(resourceFilters) !== JSON.stringify(filters);
+
+    if (filtersChanged) {
+      setResourceFilters(filters);
+      // Notify parent component about filter changes
+      if (onResourceFiltersChange) {
+        onResourceFiltersChange(filters);
+      }
+    }
   };
 
   return (
@@ -673,6 +778,15 @@ const ListViewComponent = ({
                 })}
               </Typography>
             </Box>
+          )}
+
+          {/* Add ObjectFilters component */}
+          {!isLoading && resources.length > 0 && (
+            <ObjectFilters
+              availableResources={resources}
+              activeFilters={resourceFilters}
+              onFiltersChange={handleResourceFiltersChange}
+            />
           )}
 
           <Box
@@ -857,8 +971,8 @@ const ListViewComponent = ({
               >
                 {t('listView.pagination.showing', {
                   from: indexOfFirstItem + 1,
-                  to: Math.min(indexOfLastItem, totalItems),
-                  total: totalItems,
+                  to: Math.min(indexOfLastItem, actualTotalItems),
+                  total: actualTotalItems,
                 })}
                 {filteredContext !== 'all' &&
                   t('listView.pagination.filtered', { context: filteredContext })}
@@ -896,7 +1010,7 @@ const ListViewComponent = ({
                 variant="outlined"
                 size="small"
                 onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
+                disabled={currentPage === 1 || totalPages === 0}
                 sx={{
                   minWidth: { xs: 60, sm: 70 },
                   px: { xs: 1, sm: 1.5 },
@@ -945,13 +1059,15 @@ const ListViewComponent = ({
                     sx={{
                       display: {
                         xs:
-                          typeof pageNumber === 'number' &&
-                          Math.abs((pageNumber as number) - currentPage) > 1 &&
-                          pageNumber !== 1 &&
-                          pageNumber !== totalPages
-                            ? 'none'
-                            : 'inline-flex',
-                        sm: 'inline-flex',
+                          // On mobile, show: first page, current page ±1, last page, and ellipsis
+                          pageNumber === '...' ||
+                          pageNumber === 1 ||
+                          pageNumber === totalPages ||
+                          (typeof pageNumber === 'number' &&
+                            Math.abs(pageNumber - currentPage) <= 1)
+                            ? 'inline-flex'
+                            : 'none',
+                        sm: 'inline-flex', // On larger screens, show all pages from our improved algorithm
                       },
                       minWidth: { xs: 30, sm: 36 },
                       height: { xs: 30, sm: 32 },
@@ -986,7 +1102,7 @@ const ListViewComponent = ({
                 variant="outlined"
                 size="small"
                 onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
+                disabled={currentPage === totalPages || totalPages === 0}
                 sx={{
                   minWidth: { xs: 60, sm: 70 },
                   px: { xs: 1, sm: 1.5 },
@@ -1025,7 +1141,8 @@ const ListViewComponent = ({
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            marginTop: '250px',
+            marginTop: '100px',
+            padding: 3,
           }}
         >
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
@@ -1040,24 +1157,26 @@ const ListViewComponent = ({
                 color: theme === 'dark' ? '#94a3b8' : '#00000099',
                 fontSize: '17px',
                 mb: 2,
+                textAlign: 'center',
               }}
             >
-              {filteredContext !== 'all'
-                ? t('listView.noWorkloads.noResourcesForContext', { context: filteredContext })
-                : resources.length > 0
-                  ? t('listView.noWorkloads.resourcesFilteredOut')
-                  : t('listView.noWorkloads.getStarted')}
+              {Object.keys(resourceFilters).length > 0
+                ? t('listView.noWorkloads.noMatchingFilters')
+                : filteredContext !== 'all'
+                  ? t('listView.noWorkloads.noResourcesForContext', { context: filteredContext })
+                  : resources.length > 0
+                    ? t('listView.noWorkloads.resourcesFilteredOut')
+                    : t('listView.noWorkloads.getStarted')}
             </Typography>
             {resources.length > 0 && filteredResources.length === 0 && (
-              <Typography
-                variant="caption"
-                sx={{
-                  color: theme === 'dark' ? '#90CAF9' : '#1976d2',
-                  fontSize: '0.85rem',
-                }}
+              <Button
+                variant="outlined"
+                color="primary"
+                onClick={() => setResourceFilters({})}
+                sx={{ mt: 2 }}
               >
-                {t('listView.noWorkloads.resourcesAvailable', { count: resources.length })}
-              </Typography>
+                {t('resources.clearFilters')}
+              </Button>
             )}
           </Box>
         </Box>

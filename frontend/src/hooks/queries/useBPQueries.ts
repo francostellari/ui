@@ -173,7 +173,15 @@ export const useBPQueries = () => {
   const { t } = useTranslation();
 
   // GET /api/bp - Fetch all binding policies
-  const useBindingPolicies = () => {
+  interface QueryOptions {
+    staleTime?: number;
+    cacheTime?: number;
+    refetchInterval?: number;
+    retry?: number | boolean;
+    enabled?: boolean;
+  }
+
+  const useBindingPolicies = (options?: QueryOptions) => {
     const queryResult = useQuery<BindingPolicyInfo[], Error>({
       queryKey: ['binding-policies'],
       queryFn: async () => {
@@ -275,6 +283,11 @@ export const useBPQueries = () => {
           } as BindingPolicyInfo;
         });
       },
+      staleTime: options?.staleTime || 10000, // Default 10 seconds
+      gcTime: options?.cacheTime || 300000, // Default 5 minutes
+      refetchInterval: options?.refetchInterval,
+      retry: options?.retry !== undefined ? options?.retry : 1,
+      enabled: options?.enabled !== undefined ? options.enabled : true,
       // Default to empty array if there's an error
       placeholderData: [],
     });
@@ -459,26 +472,6 @@ export const useBPQueries = () => {
           yaml: '', // Initialize with empty string instead of undefined
         } as BindingPolicyInfo;
       },
-    });
-  };
-
-  // GET /api/bp/status?name=policyName - Fetch only status for a specific binding policy
-  const useBindingPolicyStatus = (policyName: string | undefined) => {
-    return useQuery<{ status: string }, Error>({
-      queryKey: ['binding-policy-status', policyName],
-      queryFn: async () => {
-        if (!policyName) throw new Error('Policy name is required');
-
-        console.log(`Fetching status for binding policy: ${policyName}`);
-        const response = await api.get(`/api/bp/status?name=${encodeURIComponent(policyName)}`);
-
-        // Extract just the status from the response
-        const status = response.data.status || 'Inactive';
-        return {
-          status: status.charAt(0).toUpperCase() + status.slice(1).toLowerCase(),
-        };
-      },
-      enabled: !!policyName,
     });
   };
 
@@ -1236,7 +1229,6 @@ export const useBPQueries = () => {
   return {
     useBindingPolicies,
     useBindingPolicyDetails,
-    useBindingPolicyStatus,
     useCreateBindingPolicy,
     useDeleteBindingPolicy,
     useDeletePolicies,

@@ -3,16 +3,20 @@ import {
   HiOutlineCommandLine,
   HiOutlinePuzzlePiece,
   HiOutlineUsers,
+  HiOutlineRocketLaunch,
+  HiOutlineViewfinderCircle,
 } from 'react-icons/hi2';
 import { MdPolicy, MdAssuredWorkload, MdDashboard } from 'react-icons/md';
-import { BarChart3 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { SiGrafana } from 'react-icons/si';
 import { MenuItemData } from './Menu';
 import { useAdminCheck } from '../../hooks/useAuth';
+import { usePlugins } from '../../plugins/PluginLoader';
 
 export const useMenuData = (): MenuItemData[] => {
   const { t } = useTranslation();
   const { isAdmin } = useAdminCheck();
+  const { pluginMenuItems } = usePlugins();
 
   const menuItems: MenuItemData[] = [
     {
@@ -37,7 +41,13 @@ export const useMenuData = (): MenuItemData[] => {
           isLink: true,
           url: '/its',
           icon: HiOutlineCube,
-          label: t('menu.items.remoteClusters'),
+          label: t('menu.items.managedClusters'),
+        },
+        {
+          isLink: true,
+          url: '/grafana',
+          icon: SiGrafana,
+          label: t('menu.items.Grafana'),
         },
         {
           isLink: true,
@@ -59,9 +69,9 @@ export const useMenuData = (): MenuItemData[] => {
         },
         {
           isLink: true,
-          url: '/metrics',
-          icon: BarChart3,
-          label: t('menu.items.metricsDashboard'),
+          url: '/resources',
+          icon: HiOutlineViewfinderCircle,
+          label: t('menu.items.resourceExplorer'),
         },
       ],
     },
@@ -72,10 +82,17 @@ export const useMenuData = (): MenuItemData[] => {
       listItems: [
         {
           isLink: true,
+          url: '/plugins/marketplace',
+          icon: HiOutlineRocketLaunch,
+          label: t('menu.items.galaxyMarketplace', 'Galaxy Marketplace'),
+        },
+        {
+          isLink: true,
           url: '/plugins/manage',
           icon: HiOutlinePuzzlePiece,
           label: t('menu.items.pluginManager'),
         },
+        ...pluginMenuItems,
       ],
     },
   ];

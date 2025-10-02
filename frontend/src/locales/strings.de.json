@@ -47,13 +47,17 @@
         "title": "Plugin-Manager",
         "description": "KubeStellar-Plugins verwalten und überwachen"
       },
-      "clusters": {
-        "title": "Remote-Cluster",
+      "managedClusters": {
+        "title": "Verwaltete Cluster",
         "description": "Kubernetes-Cluster verwalten"
       },
       "workloads": {
         "title": "Workloads",
-        "description": "Workloads über Cluster verwalten"
+        "description": "Workloads über Cluster hinweg verwalten"
+      },
+      "resourceExplorer": {
+        "title": "Objekt-Explorer",
+        "description": "Kubernetes-Objekte durchsuchen und filtern"
       },
       "bindingPolicies": {
         "title": "Bindungsrichtlinien",
@@ -79,6 +83,10 @@
         "title": "Abmelden",
         "description": "Von Ihrem Konto abmelden",
         "infoMessage": "Sie wurden erfolgreich abgemeldet."
+      },
+      "galaxyMarketplace": {
+        "title": "Galaxy-Marktplatz",
+        "description": "Entdecken und installieren Sie Plugins aus dem Galaxy-Marktplatz"
       }
     }
   },
@@ -145,7 +153,8 @@
         "passwordMismatch": "Passwörter stimmen nicht überein",
         "addFailed": "Benutzer konnte nicht hinzugefügt werden",
         "updateFailed": "Benutzer konnte nicht aktualisiert werden",
-        "deleteFailed": "Benutzer konnte nicht gelöscht werden"
+        "deleteFailed": "Benutzer konnte nicht gelöscht werden",
+        "invalidUsername": "Der Benutzername darf nur Buchstaben, Zahlen, Unterstriche und Bindestriche enthalten"
       },
       "success": {
         "userAdded": "Benutzer erfolgreich hinzugefügt",
@@ -163,12 +172,20 @@
     },
     "items": {
       "home": "Startseite",
-      "remoteClusters": "Remote-Cluster",
+      "managedClusters": "Verwaltete Cluster",
       "stagedWorkloads": "Vorbereitete Workloads",
       "bindingPolicies": "Bindungsrichtlinien",
       "deployedWorkloads": "Bereitgestellte Workloads",
       "pluginManager": "Plugin-Manager",
-      "userManagement": "Benutzerverwaltung"
+      "userManagement": "Benutzerverwaltung",
+      "galaxyMarketplace": "Galaxy-Marktplatz"
     }
+  },
+  "marketplace": {
+    "title": "KubeStellar Galaxy Marktplatz",
+    "description": "Entdecken und installieren Sie Plugins zur Verbesserung Ihrer KubeStellar-Erfahrung"
+  },
+  "validation": {
+    "missingRequiredFields": "Fehlende Pflichtfelder"
   }
 }

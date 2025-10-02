@@ -7,7 +7,7 @@ import HeaderSkeleton from './skeleton/HeaderSkeleton';
 import { useAuth } from '../hooks/useAuth';
 import FullScreenToggle from './skeleton/FullScreenToggle';
 import ProfileSection from './ProfileSection';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import getThemeStyles from '../lib/theme-utils';
 import CommandPalette from './CommandPalette';
 import { useTranslation } from 'react-i18next';
@@ -78,7 +78,7 @@ const Header = ({ isLoading, toggleMobileMenu, isMobileMenuOpen = false }: Heade
     boxShadow: themeStyles.colors.shadow.sm,
   });
 
-  const menuButtonVariants = {
+  const menuButtonVariants: Variants = {
     open: {
       rotate: 90,
       scale: 1.1,
@@ -86,6 +86,27 @@ const Header = ({ isLoading, toggleMobileMenu, isMobileMenuOpen = false }: Heade
     closed: {
       rotate: 0,
       scale: 1,
+    },
+  };
+
+  // Icon animation variants
+  const iconVariants: Variants = {
+    rest: {
+      rotate: 0,
+      scale: 1,
+    },
+    hover: {
+      rotate: 15,
+      scale: 1.1,
+      transition: {
+        type: 'spring',
+        stiffness: 400,
+        damping: 8,
+      },
+    },
+    tap: {
+      rotate: 0,
+      scale: 0.9,
     },
   };
 
@@ -100,44 +121,62 @@ const Header = ({ isLoading, toggleMobileMenu, isMobileMenuOpen = false }: Heade
         className={`flex items-center gap-3 transition-all duration-300 ${scrolled ? 'scale-[0.97]' : ''}`}
       >
         <div className="mr-1 w-auto p-0 xl:hidden">
-          <div className="tooltip tooltip-bottom" data-tip={t('header.menu')}>
+          <motion.div
+            className="tooltip tooltip-bottom relative"
+            initial="rest"
+            whileHover="hover"
+            whileTap="tap"
+            data-tip={t('header.menu')}
+          >
             <motion.button
               onClick={toggleMobileMenu}
-              className="btn btn-circle transition-all duration-300 hover:scale-105 active:scale-95"
+              className="btn btn-circle relative transition-all duration-300"
               style={getButtonStyle()}
               aria-label={t('header.menu')}
               animate={isMobileMenuOpen ? 'open' : 'closed'}
               variants={menuButtonVariants}
               transition={{ duration: 0.3, type: 'spring', stiffness: 300, damping: 20 }}
             >
-              <AnimatePresence mode="wait">
-                {isMobileMenuOpen ? (
-                  <motion.div
-                    key="close"
-                    initial={{ opacity: 0, rotate: -90 }}
-                    animate={{ opacity: 1, rotate: 0 }}
-                    exit={{ opacity: 0, rotate: 90 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <HiXMark
-                      className="text-2xl"
-                      style={{ color: themeStyles.colors.status.error }}
-                    />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="open"
-                    initial={{ opacity: 0, rotate: 90 }}
-                    animate={{ opacity: 1, rotate: 0 }}
-                    exit={{ opacity: 0, rotate: -90 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <HiBars3CenterLeft className="text-2xl" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <motion.div
+                className="absolute inset-0 rounded-full"
+                animate={{
+                  background: isDark
+                    ? 'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 70%)'
+                    : 'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 70%)',
+                }}
+              />
+              <motion.div className="relative z-10 flex items-center justify-center">
+                <motion.div variants={iconVariants}>
+                  <AnimatePresence mode="wait">
+                    {isMobileMenuOpen ? (
+                      <motion.div
+                        key="close"
+                        initial={{ opacity: 0, rotate: -90 }}
+                        animate={{ opacity: 1, rotate: 0 }}
+                        exit={{ opacity: 0, rotate: 90 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <HiXMark
+                          className="text-2xl"
+                          style={{ color: themeStyles.colors.status.error }}
+                        />
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="open"
+                        initial={{ opacity: 0, rotate: 90 }}
+                        animate={{ opacity: 1, rotate: 0 }}
+                        exit={{ opacity: 0, rotate: -90 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <HiBars3CenterLeft className="text-2xl" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              </motion.div>
             </motion.button>
-          </div>
+          </motion.div>
         </div>
 
         <Link
@@ -160,112 +199,159 @@ const Header = ({ isLoading, toggleMobileMenu, isMobileMenuOpen = false }: Heade
       <div className="3xl:gap-5 flex items-center gap-2 xl:gap-4">
         {authData?.isAuthenticated ? (
           <>
-            <div className="tooltip tooltip-bottom" data-tip={t('header.themeToggle')}>
+            <motion.div
+              className="tooltip tooltip-bottom relative"
+              initial="rest"
+              whileHover="hover"
+              whileTap="tap"
+              data-tip={t('header.themeToggle')}
+            >
               <motion.button
                 onClick={toggleTheme}
-                className="btn btn-circle transition-all duration-300 hover:scale-105 active:scale-95"
+                className="btn btn-circle relative transition-all duration-300"
                 style={getButtonStyle()}
                 aria-label={t('header.themeToggle')}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
               >
-                <AnimatePresence mode="wait">
-                  {!isDark ? (
-                    <motion.div
-                      key="moon"
-                      initial={{ opacity: 0, rotate: -30 }}
-                      animate={{ opacity: 1, rotate: 0 }}
-                      exit={{ opacity: 0, rotate: 30 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <FiMoon
-                        style={{ color: themeStyles.colors.brand.secondary }}
-                        className="text-xl"
-                      />
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="sun"
-                      initial={{ opacity: 0, rotate: 30 }}
-                      animate={{ opacity: 1, rotate: 0 }}
-                      exit={{ opacity: 0, rotate: -30 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <FiSun
-                        style={{ color: themeStyles.colors.status.warning }}
-                        className="text-xl"
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <motion.div
+                  className="absolute inset-0 rounded-full"
+                  animate={{
+                    background: isDark
+                      ? 'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 70%)'
+                      : 'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 70%)',
+                  }}
+                />
+                <motion.div className="relative z-10 flex items-center justify-center">
+                  <motion.div variants={iconVariants}>
+                    <AnimatePresence mode="wait">
+                      {!isDark ? (
+                        <motion.div
+                          key="moon"
+                          initial={{ opacity: 0, rotate: -30 }}
+                          animate={{ opacity: 1, rotate: 0 }}
+                          exit={{ opacity: 0, rotate: 30 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <FiMoon
+                            style={{ color: themeStyles.colors.brand.secondary }}
+                            className="text-xl"
+                          />
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="sun"
+                          initial={{ opacity: 0, rotate: 30 }}
+                          animate={{ opacity: 1, rotate: 0 }}
+                          exit={{ opacity: 0, rotate: -30 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <FiSun
+                            style={{ color: themeStyles.colors.status.warning }}
+                            className="text-xl"
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                </motion.div>
               </motion.button>
+            </motion.div>
+
+            <div className="relative z-[6]">
+              <CommandPalette />
+            </div>
+            <div className="relative z-[6]">
+              <LanguageSwitcher />
             </div>
 
-            <CommandPalette />
-            <LanguageSwitcher />
+            <div className="hidden xl:flex">
+              <FullScreenToggle
+                position="inline"
+                tooltipPosition="bottom"
+                className={`btn btn-circle ${isDark ? 'bg-gray-800/80 hover:bg-gray-700/90' : 'bg-white/90 hover:bg-gray-50/95'}`}
+                iconSize={20}
+              />
+            </div>
 
-            <div className="relative flex items-center">
+            <div className="relative z-[6] flex items-center">
               <ProfileSection />
             </div>
           </>
         ) : (
           <>
-            <div
-              className="tooltip tooltip-bottom"
+            <motion.div
+              className="tooltip tooltip-bottom relative"
+              initial="rest"
+              whileHover="hover"
+              whileTap="tap"
               data-tip={t('header.switchTheme', { mode: isDark ? 'light' : 'dark' })}
             >
               <motion.button
                 onClick={toggleTheme}
-                className="btn btn-circle transition-all duration-300 hover:scale-105 active:scale-95"
+                className="btn btn-circle relative transition-all duration-300"
                 style={getButtonStyle()}
                 aria-label={t('header.switchTheme', { mode: isDark ? 'light' : 'dark' })}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
               >
-                <AnimatePresence mode="wait">
-                  {!isDark ? (
-                    <motion.div
-                      key="moon"
-                      initial={{ opacity: 0, rotate: -30 }}
-                      animate={{ opacity: 1, rotate: 0 }}
-                      exit={{ opacity: 0, rotate: 30 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <FiMoon
-                        style={{ color: themeStyles.colors.brand.secondary }}
-                        className="text-xl"
-                      />
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="sun"
-                      initial={{ opacity: 0, rotate: 30 }}
-                      animate={{ opacity: 1, rotate: 0 }}
-                      exit={{ opacity: 0, rotate: -30 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <FiSun
-                        style={{ color: themeStyles.colors.status.warning }}
-                        className="text-xl"
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <motion.div
+                  className="absolute inset-0 rounded-full"
+                  animate={{
+                    background: isDark
+                      ? 'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 70%)'
+                      : 'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 70%)',
+                  }}
+                />
+                <motion.div className="relative z-10 flex items-center justify-center">
+                  <motion.div variants={iconVariants}>
+                    <AnimatePresence mode="wait">
+                      {!isDark ? (
+                        <motion.div
+                          key="moon"
+                          initial={{ opacity: 0, rotate: -30 }}
+                          animate={{ opacity: 1, rotate: 0 }}
+                          exit={{ opacity: 0, rotate: 30 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <FiMoon
+                            style={{ color: themeStyles.colors.brand.secondary }}
+                            className="text-xl"
+                          />
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="sun"
+                          initial={{ opacity: 0, rotate: 30 }}
+                          animate={{ opacity: 1, rotate: 0 }}
+                          exit={{ opacity: 0, rotate: -30 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <FiSun
+                            style={{ color: themeStyles.colors.status.warning }}
+                            className="text-xl"
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                </motion.div>
               </motion.button>
+            </motion.div>
+
+            <div className="relative z-[6]">
+              <CommandPalette />
+            </div>
+            <div className="relative z-[6]">
+              <LanguageSwitcher />
             </div>
 
-            <CommandPalette />
-            <LanguageSwitcher />
+            <div className="hidden xl:flex">
+              <FullScreenToggle
+                position="inline"
+                tooltipPosition="bottom"
+                className={`btn btn-circle ${isDark ? 'bg-gray-800/80 hover:bg-gray-700/90' : 'bg-white/90 hover:bg-gray-50/95'}`}
+                iconSize={20}
+              />
+            </div>
           </>
         )}
-
-        <div className="hidden xl:flex">
-          <FullScreenToggle
-            position="inline"
-            className={`btn btn-circle ${isDark ? 'bg-gray-800/80 hover:bg-gray-700/90' : 'bg-white/90 hover:bg-gray-50/95'}`}
-            iconSize={20}
-          />
-        </div>
       </div>
     </motion.header>
   );

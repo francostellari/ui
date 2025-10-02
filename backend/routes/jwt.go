@@ -132,6 +132,7 @@ func setupAuthRoutes(router *gin.Engine) {
 			admin.POST("/users", CreateUserHandler)
 			admin.PUT("/users/:username", UpdateUserHandler)
 			admin.DELETE("/users/:username", DeleteUserHandler)
+			admin.GET("/users/deleted", ListDeletedUsersHandler)
 			admin.GET("/users/:username/permissions", GetUserPermissionsHandler)
 			admin.PUT("/users/:username/permissions", SetUserPermissionsHandler)
 		}
@@ -239,7 +240,7 @@ func LoginHandler(c *gin.Context) {
 			}
 
 			// Generate JWT token
-			token, err := utils.GenerateToken(user.Username, user.IsAdmin, user.Permissions)
+			token, err := utils.GenerateToken(user.Username, user.IsAdmin, user.Permissions, user.ID)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Token generation failed"})
 				return
@@ -313,7 +314,7 @@ func LoginHandler(c *gin.Context) {
 	}
 
 	// Generate JWT token
-	token, err := utils.GenerateToken(username, isAdmin, permissions)
+	token, err := utils.GenerateToken(username, isAdmin, permissions, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Token generation failed"})
 		return
@@ -492,6 +493,24 @@ func CreateUserHandler(c *gin.Context) {
 		return
 	}
 
+	// Validate username
+	if err := utils.ValidateUsername(userData.Username); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid username",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Validate password
+	if err := utils.ValidatePassword(userData.Password); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid password",
+			"details": err.Error(),
+		})
+		return
+	}
+
 	// Create user
 	user, err := models.CreateUser(userData.Username, userData.Password, userData.IsAdmin)
 	if err != nil {
@@ -528,9 +547,17 @@ func CreateUserHandler(c *gin.Context) {
 	})
 }
 
-// UpdateUserHandler updates an existing user (admin only)
 func UpdateUserHandler(c *gin.Context) {
 	username := c.Param("username")
+
+	// Validate URL parameter username
+	if err := utils.ValidateUsername(username); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid username in URL",
+			"details": err.Error(),
+		})
+		return
+	}
 
 	var userData struct {
 		Username    string            `json:"username"`
@@ -542,6 +569,28 @@ func UpdateUserHandler(c *gin.Context) {
 	if err := c.ShouldBindJSON(&userData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
 		return
+	}
+
+	// Validate new username if provided
+	if userData.Username != "" {
+		if err := utils.ValidateUsername(userData.Username); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Invalid new username",
+				"details": err.Error(),
+			})
+			return
+		}
+	}
+
+	// Validate password if provided
+	if userData.Password != "" {
+		if err := utils.ValidatePassword(userData.Password); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Invalid password",
+				"details": err.Error(),
+			})
+			return
+		}
 	}
 
 	// Get existing user
@@ -620,9 +669,17 @@ func UpdateUserHandler(c *gin.Context) {
 	})
 }
 
-// DeleteUserHandler deletes a user (admin only)
 func DeleteUserHandler(c *gin.Context) {
 	username := c.Param("username")
+
+	// Validate URL parameter username
+	if err := utils.ValidateUsername(username); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid username in URL",
+			"details": err.Error(),
+		})
+		return
+	}
 
 	// Prevent deleting the last admin user
 	if username == "admin" {
@@ -658,6 +715,21 @@ func DeleteUserHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message":  "User deleted successfully",
 		"username": username,
+	})
+}
+
+func ListDeletedUsersHandler(c *gin.Context) {
+	deletedUsers, err := models.ListDeletedUsers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to fetch deleted user logs",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"deleted_users": deletedUsers,
 	})
 }
 

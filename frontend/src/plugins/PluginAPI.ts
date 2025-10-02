@@ -1,13 +1,14 @@
 import { api } from '../lib/api';
-import { PluginManifest, PluginAPIResponse, PluginStatus } from './types';
+import { PluginAPIResponse, PluginStatus, PluginManifestWithID } from './types';
 
 export class PluginAPI {
   private baseURL = '/api/plugins';
 
-  async getPluginManifests(): Promise<PluginManifest[]> {
-    const response = await api.get<PluginAPIResponse<PluginManifest[]>>(
+  async getPluginManifests(): Promise<PluginManifestWithID[]> {
+    const response = await api.get<PluginAPIResponse<PluginManifestWithID[]>>(
       `${this.baseURL}/manifests`
     );
+    console.log(response.data.data);
     return response.data.data || [];
   }
 
@@ -102,8 +103,8 @@ export class PluginAPI {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async submitPluginFeedback(feedback: any): Promise<any> {
-    const response = await api.post(`${this.baseURL}/feedback`, feedback);
+  async submitPluginFeedback(pluginId: number, feedback: any): Promise<any> {
+    const response = await api.post(`${this.baseURL}/${pluginId}/feedback`, feedback);
     return response;
   }
 

@@ -517,6 +517,7 @@
       "notAvailable": "N/D",
       "invalidDate": "Date invalide",
       "managedClusters": "Clusters gérés",
+      "grafana": "Grafana",
       "total": "total",
       "viewAll": "Voir tout",
       "cpuCapacity": "Capacité CPU",
@@ -1323,8 +1324,8 @@
         "packageIdPlaceholder": "helm/bitnami/nginx",
         "packageIdTip": "Spécifiez l'ID du chart Helm (ex. : helm/bitnami/nginx)",
         "version": "Version (par défaut : dernière)",
-        "versionTooltip": "Version du chart à déployer (ex. : 13.2.10). Si non spécifié, la dernière version sera utilisée.",
-        "versionPlaceholder": "13.2.10 (laisser vide pour la dernière)",
+        "versionTooltip": "Version du chart à déployer (ex. : 13.2.12). Si non spécifié, la dernière version sera utilisée.",
+        "versionPlaceholder": "13.2.12 (laisser vide pour la dernière)",
         "versionTip": "Spécifiez la version à déployer (laisser vide pour la dernière)",
         "releaseName": "Nom du Déploiement *",
         "releaseNameTooltip": "Nom pour identifier votre déploiement Helm",
@@ -1956,12 +1957,16 @@
         "description": "Gérer et surveiller les plugins de KubeStellar"
       },
       "clusters": {
-        "title": "Clusters Distants",
+        "title": "Clusters Gérés",
         "description": "Gérer les clusters Kubernetes"
       },
       "workloads": {
         "title": "Charges de travail",
-        "description": "Gérer les charges de travail sur les clusters"
+        "description": "Gérer les charges de travail entre clusters"
+      },
+      "resourceExplorer": {
+        "title": "Explorateur d'Objets",
+        "description": "Rechercher et filtrer les objets Kubernetes"
       },
       "bindingPolicies": {
         "title": "Politiques d'assignation",
@@ -1987,6 +1992,10 @@
         "title": "Déconnexion",
         "description": "Se déconnecter de votre compte",
         "infoMessage": "Vous avez été déconnecté avec succès."
+      },
+      "galaxyMarketplace": {
+        "title": "Marché Galaxy KubeStellar",
+        "description": "Découvrez et installez des plugins pour améliorer votre expérience KubeStellar"
       }
     }
   },
@@ -1999,12 +2008,14 @@
     },
     "items": {
       "home": "Accueil",
-      "remoteClusters": "Clusters Distants",
+      "managedClusters": "Clusters Gérés",
+      "grafana": "Grafana",
       "stagedWorkloads": "Charges en attente",
       "bindingPolicies": "Politiques d'assignation",
       "deployedWorkloads": "Charges déployées",
       "pluginManager": "Gestionnaire de Plugins",
-      "userManagement": "Gestion des Utilisateurs"
+      "userManagement": "Gestion des Utilisateurs",
+      "galaxyMarketplace": "Marché Galaxy KubeStellar"
     }
   },
   "plugins": {
@@ -2203,7 +2214,8 @@
         "passwordMismatch": "Les mots de passe ne correspondent pas",
         "addFailed": "Échec de l'ajout de l'utilisateur",
         "updateFailed": "Échec de la mise à jour de l'utilisateur",
-        "deleteFailed": "Échec de la suppression de l'utilisateur"
+        "deleteFailed": "Échec de la suppression de l'utilisateur",
+        "invalidUsername": "Le nom d'utilisateur ne peut contenir que des lettres, des chiffres, des tirets bas et des tirets."
       },
       "success": {
         "userAdded": "Utilisateur ajouté avec succès",
@@ -2211,5 +2223,37 @@
         "userDeleted": "Utilisateur supprimé avec succès"
       }
     }
+  },
+  "notFoundPage": {
+    "logoAlt": "Logo KubeStellar",
+    "mainTitle": "404 - Page non trouvée",
+    "description": "La page que vous recherchez a peut-être été supprimée, son nom a été modifié ou elle est temporairement indisponible.",
+    "returnHomeButton": "Retour à l'accueil",
+    "tryAgainButton": "Réessayer",
+    "quotes": [
+      {
+        "text": "Dans le vaste univers du code, parfois nous nous perdons parmi les étoiles.",
+        "author": "Développeur Anonyme"
+      },
+      {
+        "text": "Le chemin moins fréquenté n'est souvent pas trouvé pour une raison.",
+        "author": "Explorateur Web"
+      },
+      {
+        "text": "Tous ceux qui errent ne sont pas perdus, mais cette page l'est certainement.",
+        "author": "J.R.R. Token"
+      },
+      {
+        "text": "Le succès n'est pas définitif, le 404 n'est pas fatal: c'est le courage de naviguer qui compte.",
+        "author": "Winston Codehill"
+      },
+      {
+        "text": "La meilleure façon de prédire l'avenir est d'implémenter un routage approprié.",
+        "author": "Alan Turning"
+      }
+    ]
+  },
+  "validation": {
+    "missingRequiredFields": "Champs obligatoires manquants"
   }
 }
